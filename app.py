@@ -1,14 +1,15 @@
-import streamlit as st 
+import streamlit as st
 import pickle
 import pandas as pd
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-client_id = st.secrets["tmdb_api_key"]
+
+api_key = st.secrets["tmdb_api_key"]
 
 def fetch_poster(movie_id):
-    api_key = client_id  
+    api_key = api_key 
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
     response = requests.get(url)
     data = response.json()
@@ -18,20 +19,19 @@ def fetch_poster(movie_id):
     return "https://via.placeholder.com/500x750?text=No+Image"
 
 def recommend(movie):
-    """Recommend movies with posters and details."""
     try:
         movie_matches = movies[movies['title'] == movie]
         if movie_matches.empty:
             return []
-            
+
         movie_index = movie_matches.index[0]
         distances = similarity[movie_index]
         movies_list = sorted(
-            list(enumerate(distances)), 
-            reverse=True, 
+            list(enumerate(distances)),
+            reverse=True,
             key=lambda x: x[1]
         )[1:6]
-        
+
         recommended_movies = []
         for i in movies_list:
             movie_data = movies.iloc[i[0]]
@@ -41,7 +41,8 @@ def recommend(movie):
                 'genres': movie_data.genres,
                 'cast': movie_data.cast,
                 'crew': movie_data.crew,
-                'poster': fetch_poster(movie_data.movie_id)  # needs 'movie_id' in dataset
+                'poster': fetch_poster(movie_data.movie_id),
+                'popularity': getattr(movie_data, "popularity", "N/A")
             })
         return recommended_movies
     except (IndexError, KeyError):
@@ -54,28 +55,41 @@ movies = pd.DataFrame(movies_data)
 with open('similarity.pkl', 'rb') as f:
     similarity = pickle.load(f)
 
-st.title("🎬 Movie Recommender System")
+st.set_page_config(page_title=" Movie Recommender ", layout="wide")
 
-selected_movie_name = st.selectbox(
-    'What brings you here?',
+st.title("Movie Recommender System")
+st.markdown("Discover movies similar to your favorite picks!")
+
+st.sidebar.header(" Find Recommendations")
+selected_movie_name = st.sidebar.selectbox(
+    "Choose a movie",
     movies['title'].values
 )
 
-if st.button('Recommend'):
+if st.sidebar.button("Recommend"):
     recommendations = recommend(selected_movie_name)
-    
+
     if recommendations:
-        st.subheader("Recommended Movies:")
+        st.subheader(f"Because you watched **{selected_movie_name}**...")
+        st.write("---")
+
         for i, movie in enumerate(recommendations, 1):
             col1, col2 = st.columns([1, 3])
+
             with col1:
-                st.image(movie['poster'], width=150)
+                st.image(movie['poster'], width=200)
+
             with col2:
                 st.markdown(f"### {i}. {movie['title']}")
                 st.write(f"**Genres:** {movie['genres']}")
                 st.write(f"**Director:** {movie['crew']}")
                 st.write(f"**Cast:** {movie['cast']}")
-                st.write(f"**Overview:** {movie['overview']}")
+
+                with st.expander("Overview"):
+                    st.write(movie['overview'])
+
+                st.metric(" Popularity", movie['popularity'])
+
             st.markdown("---")
     else:
         st.error("Sorry, couldn't find recommendations for this movie.")
