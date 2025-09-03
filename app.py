@@ -42,7 +42,6 @@ def recommend(movie):
                 'cast': movie_data.cast,
                 'crew': movie_data.crew,
                 'poster': fetch_poster(movie_data.movie_id),
-                'popularity': getattr(movie_data, "popularity", "N/A")
             })
         return recommended_movies
     except (IndexError, KeyError):
