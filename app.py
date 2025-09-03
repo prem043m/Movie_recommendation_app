@@ -87,7 +87,6 @@ if st.sidebar.button("Recommend"):
                 with st.expander("Overview"):
                     st.write(movie['overview'])
 
-                st.metric(" Popularity", movie['popularity'])
 
             st.markdown("---")
     else:
