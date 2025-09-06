@@ -99,25 +99,24 @@ if st.sidebar.button("Recommend"):
         selected_movie_data = movies[movies['title'] == selected_movie_name].iloc[0]
         
         st.subheader(f"Selected Movie: **{selected_movie_name}**")
-        col1, col2 = st.columns([1, 3])
-        
+        col1, col2 = st.columns([1, 2])
+
         with col1:
-            st.image(fetch_poster(selected_movie_data.movie_id), use_column_width=True)
+            st.image(fetch_poster(selected_movie_data.movie_id), use_container_width=True)
 
         with col2:
-            # Title + Rating
             st.markdown(f"""
-                <h2 style="margin:0;">{selected_movie_data.title}</h2>
-                <p style="margin:5px 0; font-size:16px; color:gold;">
+                <h3 style="margin:0; font-weight:normal;">{selected_movie_data.title}</h3>
+                <p style="margin:5px 0; font-size:14px; color:#555;">
                     ⭐ {selected_movie_data.vote_average}/10
                 </p>
-                <p style="margin:0; font-size:14px; color:gray;">
+                <p style="margin:0; font-size:13px; color:gray;">
                     📅 {selected_movie_data.release_date} &nbsp;&nbsp; | &nbsp;&nbsp; 
                     ⏳ {int(selected_movie_data.runtime)} min &nbsp;&nbsp; | &nbsp;&nbsp;
                     🌍 {selected_movie_data.original_language.upper()}
                 </p>
                 <hr style="margin:10px 0;">
-                <p style="font-size:15px; line-height:1.6;">
+                <p style="font-size:14px; line-height:1.5;">
                     <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres)}<br>
                     <b>🎬 Director:</b> {', '.join(selected_movie_data.crew)}<br>
                     <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:5])}<br>
@@ -127,67 +126,55 @@ if st.sidebar.button("Recommend"):
                 </p>
             """, unsafe_allow_html=True)
 
-            # Overview section
-            st.markdown("### 📖 Overview")
-            overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
-            st.write(overview_text)
+        # Overview section
+        st.markdown("#### 📖 Overview")
+        overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
+        st.write(overview_text)
 
-            # Homepage
-            if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
-                st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
+        # Homepage
+        if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
+            st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
 
-
-            
-            with st.expander("Overview"):
-                overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
-                st.write(overview_text)
-        
-        st.write("---")
-        st.subheader(f"Because you watched **{selected_movie_name}**, you might also like:")
-        st.write("---")
+        st.markdown("### 🎯 Recommended Movies")
+        st.markdown("Here are some movies similar to your selection:")
 
         # Recommended movies
         for i, movie in enumerate(recommendations, 1):
-            col1, col2 = st.columns([1, 3])
+            col1, col2 = st.columns([1, 2])
 
-        with col1:
-            st.image(fetch_poster(selected_movie_data.movie_id), use_column_width=True)
+            with col1:
+                st.image(movie['poster'], use_container_width=True)
 
-        with col2:
-            # Title + Rating
-            st.markdown(f"""
-                <h2 style="margin:0;">{selected_movie_data.title}</h2>
-                <p style="margin:5px 0; font-size:16px; color:gold;">
-                    ⭐ {selected_movie_data.vote_average}/10
-                </p>
-                <p style="margin:0; font-size:14px; color:gray;">
-                    📅 {selected_movie_data.release_date} &nbsp;&nbsp; | &nbsp;&nbsp; 
-                    ⏳ {int(selected_movie_data.runtime)} min &nbsp;&nbsp; | &nbsp;&nbsp;
-                    🌍 {selected_movie_data.original_language.upper()}
-                </p>
-                <hr style="margin:10px 0;">
-                <p style="font-size:15px; line-height:1.6;">
-                    <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres)}<br>
-                    <b>🎬 Director:</b> {', '.join(selected_movie_data.crew)}<br>
-                    <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:5])}<br>
-                    <b>🔥 Popularity:</b> {round(selected_movie_data.popularity, 2)}<br>
-                    <b>💰 Budget:</b> ${selected_movie_data.budget:,}<br>
-                    <b>📌 Status:</b> {selected_movie_data.status}
-                </p>
-            """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                    <h3 style="margin:0; font-weight:normal;">{movie['title']}</h3>
+                    <p style="margin:5px 0; font-size:14px; color:#555;">
+                        ⭐ {movie['vote_average']}/10
+                    </p>
+                    <p style="margin:0; font-size:13px; color:gray;">
+                        📅 {movie['release_date']} &nbsp;&nbsp; | &nbsp;&nbsp; 
+                        ⏳ {int(movie['runtime']) if movie['runtime'] else 'N/A'} min &nbsp;&nbsp; | &nbsp;&nbsp;
+                        🌍 {movie['original_language'].upper() if movie['original_language'] else 'N/A'}
+                    </p>
+                    <hr style="margin:10px 0;">
+                    <p style="font-size:14px; line-height:1.5;">
+                        <b>🎭 Genres:</b> {', '.join(movie['genres']) if movie['genres'] else 'N/A'}<br>
+                        <b>🎬 Director:</b> {', '.join(movie['crew']) if movie['crew'] else 'N/A'}<br>
+                        <b>👥 Cast:</b> {', '.join(movie['cast'][:5]) if movie['cast'] else 'N/A'}<br>
+                        <b>🔥 Popularity:</b> {round(movie['popularity'], 2) if movie['popularity'] else 'N/A'}<br>
+                        <b>💰 Budget:</b> ${movie['budget']:,} <br>
+                        <b>📌 Status:</b> {movie['status'] if movie['status'] else 'N/A'}
+                    </p>
+                """, unsafe_allow_html=True)
 
-            # Overview section
-            st.markdown("### 📖 Overview")
-            overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
-            st.write(overview_text)
+            # Overview
+            st.markdown("#### 📖 Overview")
+            overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
+            st.write(overview_text if overview_text else "No overview available.")
 
             # Homepage
-            if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
-                st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
-
-                with st.expander("Overview"):
-                    overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
-                    st.write(overview_text)
+            if movie['homepage']:
+                st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
 
             st.markdown("---")
 
