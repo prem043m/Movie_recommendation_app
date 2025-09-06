@@ -105,19 +105,30 @@ if st.sidebar.button("Recommend"):
             st.image(fetch_poster(selected_movie_data.movie_id), width=200)
         
         with col2:
-            st.write(f"**Genres:** {', '.join(selected_movie_data.genres) if isinstance(selected_movie_data.genres, list) else selected_movie_data.genres}")
-            st.write(f"**Director:** {', '.join(selected_movie_data.crew) if isinstance(selected_movie_data.crew, list) else selected_movie_data.crew}")
-            st.write(f"**Cast:** {', '.join(selected_movie_data.cast) if isinstance(selected_movie_data.cast, list) else selected_movie_data.cast}")
-            st.write(f"**Keywords:** {', '.join(selected_movie_data.keywords[:5]) if isinstance(selected_movie_data.keywords, list) else selected_movie_data.keywords}")
-            st.write(f"**Popularity:** {selected_movie_data.popularity}")
-            st.write(f"**Budget:** ${selected_movie_data.budget:,}")
-            st.write(f"**Release Date:** {selected_movie_data.release_date}")
-            st.write(f"**Runtime:** {selected_movie_data.runtime} minutes")
-            st.write(f"**Status:** {selected_movie_data.status}")
-            st.write(f"**Language:** {selected_movie_data.original_language.upper()}")
-            st.write(f"**Rating:** ⭐ {selected_movie_data.vote_average}/10")
-            if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
-                st.markdown(f"[🔗 Official Homepage]({selected_movie_data.homepage})")
+            with col2:
+                st.markdown(f"""
+                    <div style="font-size:18px; line-height:1.6;">
+                        <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres) if isinstance(selected_movie_data.genres, list) else selected_movie_data.genres}<br>
+                        <b>🎬 Director:</b> {', '.join(selected_movie_data.crew) if isinstance(selected_movie_data.crew, list) else selected_movie_data.crew}<br>
+                        <b>⭐ Cast:</b> {', '.join(selected_movie_data.cast[:5]) if isinstance(selected_movie_data.cast, list) else selected_movie_data.cast}<br>
+                        <b>🔑 Keywords:</b> {', '.join(selected_movie_data.keywords[:5]) if isinstance(selected_movie_data.keywords, list) else selected_movie_data.keywords}<br>
+                        <b>🔥 Popularity:</b> {round(selected_movie_data.popularity, 2)}<br>
+                        <b>💰 Budget:</b> ${selected_movie_data.budget:,}<br>
+                        <b>📅 Release Date:</b> {selected_movie_data.release_date}<br>
+                        <b>⏳ Runtime:</b> {int(selected_movie_data.runtime)} min<br>
+                        <b>📌 Status:</b> {selected_movie_data.status}<br>
+                        <b>🌍 Language:</b> {selected_movie_data.original_language.upper()}<br>
+                        <b>⭐ Rating:</b> {selected_movie_data.vote_average}/10
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # Rating progress bar
+                rating_score = float(selected_movie_data.vote_average) / 10.0
+                st.progress(rating_score)
+
+                if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
+                    st.markdown(f"[🔗 Visit Official Homepage]({selected_movie_data.homepage})", unsafe_allow_html=True)
+
             
             with st.expander("Overview"):
                 overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
