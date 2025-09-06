@@ -140,15 +140,13 @@ if st.sidebar.button("Recommend"):
                     <b>📌 Status:</b> {selected_movie_data.status}
                 </p>
             """, unsafe_allow_html=True)
+            # Overview section
+            st.markdown("#### 📖 Overview")
+            with st.expander("Overview"): overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview'] st.write(overview_text)
 
-        # Overview section
-        st.markdown("#### 📖 Overview")
-        overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
-        st.write(overview_text)
-
-        # Homepage
-        if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
-            st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
+            # Homepage
+            if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
+                st.markdown(f"[🔗 Visit Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
 
         st.markdown("### 🎯 Recommended Movies")
         st.markdown("Here are some movies similar to your selection:")
@@ -182,14 +180,13 @@ if st.sidebar.button("Recommend"):
                     </p>
                 """, unsafe_allow_html=True)
 
-            # Overview
-            st.markdown("#### 📖 Overview")
-            overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
-            st.write(overview_text if overview_text else "No overview available.")
+                # Overview
+                st.markdown("#### 📖 Overview")
+                with st.expander("Overview"): overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview'] st.write(overview_text)
 
-            # Homepage
-            if movie['homepage']:
-                st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
+                # Homepage
+                if movie['homepage']:
+                    st.markdown(f"[🔗 Visit Official Website]({movie['homepage']})", unsafe_allow_html=True)
 
             st.markdown("---")
     else:
