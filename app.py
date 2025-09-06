@@ -1,29 +1,34 @@
 import streamlit as st
-import pickle
 import pandas as pd
+import pickle
 import requests
-import os
 from dotenv import load_dotenv
+st.markdown("""
+    <style>
+        * {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        h1, h2, h3, h4, h5 {
+            font-weight: 600;
+        }
+        p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-load_dotenv()
+load_dotenv
 
-# key = os.getenv("TMDB_API_KEY")
 key = st.secrets["TMDB_API_KEY"]
 
-
 def fetch_poster(movie_id):
-    try:
-        api_key = key 
-        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        poster_path = data.get('poster_path')
-        if poster_path:
-            return f"https://image.tmdb.org/t/p/w500{poster_path}"
-        return "https://via.placeholder.com/500x750?text=No+Image"
-    except (requests.RequestException, KeyError, ValueError):
-        return "https://via.placeholder.com/500x750?text=No+Image"
+    api_key = key
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
+    response = requests.get(url)
+    data = response.json()
+    return "https://image.tmdb.org/t/p/w500" + data['poster_path'] if data.get("poster_path") else None
+
 
 def recommend(movie):
     try:
@@ -33,64 +38,46 @@ def recommend(movie):
 
         movie_index = movie_matches.index[0]
         distances = similarity[movie_index]
-        movies_list = sorted(
-            list(enumerate(distances)),
-            reverse=True,
-            key=lambda x: x[1]
-        )[1:6]
+        movie_list = sorted(
+            list(enumerate(distances)), reverse=True, key=lambda x: x[1]
+        )[1:6]  # top 5 movies
 
-        recommended_movies = []
-        for i in movies_list:
+        recommendations = []
+        for i in movie_list:
             movie_data = movies.iloc[i[0]]
-            recommended_movies.append({
-                'title': movie_data.title,
-                'overview': movie_data.overview,
-                'genres': movie_data.genres,
-                'cast': movie_data.cast,
-                'crew': movie_data.crew,
-                'keywords': movie_data.keywords,
-                'poster': fetch_poster(movie_data.movie_id),
-                'popularity': movie_data.popularity,
-                'budget': movie_data.budget,
-                'homepage': movie_data.homepage,
-                'release_date': movie_data.release_date,
-                'runtime': movie_data.runtime,
-                'status': movie_data.status,
-                'original_language': movie_data.original_language,
-                'vote_average': movie_data.vote_average
-        })
-
-        return recommended_movies
-    except (IndexError, KeyError):
+            recommendations.append({
+                "title": movie_data.title,
+                "movie_id": movie_data.movie_id,
+                "poster": fetch_poster(movie_data.movie_id),
+                "vote_average": movie_data.vote_average,
+                "release_date": movie_data.release_date,
+                "runtime": movie_data.runtime,
+                "original_language": movie_data.original_language,
+                "genres": movie_data.genres,
+                "crew": movie_data.crew,
+                "cast": movie_data.cast,
+                "popularity": movie_data.popularity,
+                "budget": movie_data.budget,
+                "status": movie_data.status,
+                "overview": movie_data.overview,
+                "homepage": movie_data.homepage
+            })
+        return recommendations
+    except Exception as e:
+        st.error(f"Error in recommendation: {e}")
         return []
 
-try:
-    with open('movies_data.pkl', 'rb') as f:
-        movies_data = pickle.load(f)
-    movies = pd.DataFrame(movies_data)
-
-    with open('similarity.pkl', 'rb') as f:
-        similarity = pickle.load(f)
-except FileNotFoundError as e:
-    st.error(f"Required data files not found: {e}")
-    st.stop()
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    st.stop()
+movies_dict = pickle.load(open("movie_dict.pkl", "rb"))
+movies = pd.DataFrame(movies_dict)
+similarity = pickle.load(open("similarity.pkl", "rb"))
 
 st.set_page_config(page_title="🎬 Movie Recommender", layout="wide")
+st.title("🎬 Movie Recommendation System")
 
-st.title("🎬 Movie Recommender System")
-st.markdown("### Discover movies similar to your favorite picks!")
-
-st.sidebar.header("🔍 Find Recommendations")
-st.sidebar.markdown("Select a movie to get personalized recommendations based on content similarity.")
 selected_movie_name = st.sidebar.selectbox(
-    "Choose a movie",
-    movies['title'].values
+    "Search a movie:", movies['title'].values
 )
 
-# Display selected movie details
 if st.sidebar.button("Recommend"):
     recommendations = recommend(selected_movie_name)
 
@@ -106,17 +93,17 @@ if st.sidebar.button("Recommend"):
 
         with col2:
             st.markdown(f"""
-                <h3 style="margin:0; font-weight:normal;">{selected_movie_data.title}</h3>
-                <p style="margin:5px 0; font-size:14px; color:#555;">
+                <h3 style="margin:0;">{selected_movie_data.title}</h3>
+                <p style="margin:5px 0; color:#555;">
                     ⭐ {selected_movie_data.vote_average}/10
                 </p>
-                <p style="margin:0; font-size:13px; color:gray;">
+                <p style="margin:0; color:gray;">
                     📅 {selected_movie_data.release_date} &nbsp;&nbsp; | &nbsp;&nbsp; 
                     ⏳ {int(selected_movie_data.runtime)} min &nbsp;&nbsp; | &nbsp;&nbsp;
                     🌍 {selected_movie_data.original_language.upper()}
                 </p>
                 <hr style="margin:10px 0;">
-                <p style="font-size:14px; line-height:1.5;">
+                <p>
                     <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres)}<br>
                     <b>🎬 Director:</b> {', '.join(selected_movie_data.crew)}<br>
                     <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:5])}<br>
@@ -147,17 +134,17 @@ if st.sidebar.button("Recommend"):
 
             with col2:
                 st.markdown(f"""
-                    <h3 style="margin:0; font-weight:normal;">{movie['title']}</h3>
-                    <p style="margin:5px 0; font-size:14px; color:#555;">
+                    <h3 style="margin:0;">{movie['title']}</h3>
+                    <p style="margin:5px 0; color:#555;">
                         ⭐ {movie['vote_average']}/10
                     </p>
-                    <p style="margin:0; font-size:13px; color:gray;">
+                    <p style="margin:0; color:gray;">
                         📅 {movie['release_date']} &nbsp;&nbsp; | &nbsp;&nbsp; 
                         ⏳ {int(movie['runtime']) if movie['runtime'] else 'N/A'} min &nbsp;&nbsp; | &nbsp;&nbsp;
                         🌍 {movie['original_language'].upper() if movie['original_language'] else 'N/A'}
                     </p>
                     <hr style="margin:10px 0;">
-                    <p style="font-size:14px; line-height:1.5;">
+                    <p>
                         <b>🎭 Genres:</b> {', '.join(movie['genres']) if movie['genres'] else 'N/A'}<br>
                         <b>🎬 Director:</b> {', '.join(movie['crew']) if movie['crew'] else 'N/A'}<br>
                         <b>👥 Cast:</b> {', '.join(movie['cast'][:5]) if movie['cast'] else 'N/A'}<br>
@@ -177,6 +164,5 @@ if st.sidebar.button("Recommend"):
                 st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
 
             st.markdown("---")
-
     else:
         st.error("Sorry, couldn't find recommendations for this movie.")
