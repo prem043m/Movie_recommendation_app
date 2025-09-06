@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # key = os.getenv("TMDB_API_KEY")
-key = st.secrets("TMDB_API_KEY")
+key = st.secrets["TMDB_API_KEY"]
 
 
 def fetch_poster(movie_id):
