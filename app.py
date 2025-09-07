@@ -53,11 +53,11 @@ def recommend(movie):
         movie_index = movie_matches.index[0]
         
         distances = similarity[movie_index]
-        movie_list = sorted(
+        movies_list = sorted(
             list(enumerate(distances)), reverse=True, key=lambda x: x[1]
         )[1:6]  # top 5 movies
 
-        recommended_movies = []
+        recommendations = []
         for i in movies_list:
             movie_data = movies.iloc[i[0]]
             recommendations.append({
