@@ -13,7 +13,7 @@ st.markdown("""
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         .stApp {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #4a4a4a 0%, #2c2c2c 100%);
         }
         h1 {
             color: #2c3e50;
