@@ -83,7 +83,9 @@ def recommend(movie):
 
 try:
     with open("movies_data.pkl", "rb") as f:
-        movies = pd.DataFrame(pickle.load(f))
+        movies = pickle.load(f)
+        if not isinstance(movies, pd.DataFrame):
+            movies = pd.DataFrame(movies)
 
     with open("similarity.pkl", "rb") as f:
         similarity = pickle.load(f)
@@ -131,9 +133,9 @@ if st.sidebar.button("Recommend"):
                 </p>
                 <hr style="margin:10px 0;">
                 <p>
-                    <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres)}<br>
-                    <b>🎬 Director:</b> {', '.join(selected_movie_data.crew)}<br>
-                    <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:5])}<br>
+                    <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres) if isinstance(selected_movie_data.genres, list) else 'N/A'}<br>
+                    <b>🎬 Director:</b> {', '.join(selected_movie_data.crew) if isinstance(selected_movie_data.crew, list) else 'N/A'}<br>
+                    <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:3]) if isinstance(selected_movie_data.cast, list) else 'N/A'}<br>
                     <b>🔥 Popularity:</b> {round(selected_movie_data.popularity, 2)}<br>
                     <b>💰 Budget:</b> ${selected_movie_data.budget:,}<br>
                     <b>📌 Status:</b> {selected_movie_data.status}
@@ -172,9 +174,9 @@ if st.sidebar.button("Recommend"):
                     </p>
                     <hr style="margin:10px 0;">
                     <p>
-                        <b>🎭 Genres:</b> {', '.join(movie['genres']) if movie['genres'] else 'N/A'}<br>
-                        <b>🎬 Director:</b> {', '.join(movie['crew']) if movie['crew'] else 'N/A'}<br>
-                        <b>👥 Cast:</b> {', '.join(movie['cast'][:5]) if movie['cast'] else 'N/A'}<br>
+                        <b>🎭 Genres:</b> {', '.join(movie['genres']) if isinstance(movie['genres'], list) and movie['genres'] else 'N/A'}<br>
+                        <b>🎬 Director:</b> {', '.join(movie['crew']) if isinstance(movie['crew'], list) and movie['crew'] else 'N/A'}<br>
+                        <b>👥 Cast:</b> {', '.join(movie['cast'][:3]) if isinstance(movie['cast'], list) and movie['cast'] else 'N/A'}<br>
                         <b>🔥 Popularity:</b> {round(movie['popularity'], 2) if movie['popularity'] else 'N/A'}<br>
                         <b>💰 Budget:</b> ${movie['budget']:,} <br>
                         <b>📌 Status:</b> {movie['status'] if movie['status'] else 'N/A'}
