@@ -53,36 +53,33 @@ def recommend(movie):
         movie_index = movie_matches.index[0]
         
         distances = similarity[movie_index]
-        
-        movies_list = sorted(
-            list(enumerate(distances)),
-            reverse=True,
-            key=lambda x: x[1]
-        )[1:6] # Get top 5 recommendations
+        movie_list = sorted(
+            list(enumerate(distances)), reverse=True, key=lambda x: x[1]
+        )[1:6]  # top 5 movies
 
         recommended_movies = []
         for i in movies_list:
             movie_data = movies.iloc[i[0]]
-            recommended_movies.append({
-                'title': movie_data.title,
-                'overview': movie_data.overview,
-                'genres': movie_data.genres,
-                'cast': movie_data.cast,
-                'crew': movie_data.crew,
-                'keywords': movie_data.keywords,
-                'poster': fetch_poster(movie_data.movie_id),
-                'popularity': movie_data.popularity,
-                'budget': movie_data.budget,
-                'homepage': movie_data.homepage,
-                'release_date': movie_data.release_date,
-                'runtime': movie_data.runtime,
-                'status': movie_data.status,
-                'original_language': movie_data.original_language,
-                'vote_average': movie_data.vote_average
-        })
-
-        return recommended_movies
-    except (IndexError, KeyError,AttributeError):
+            recommendations.append({
+                "title": movie_data.title,
+                "movie_id": movie_data.movie_id,
+                "poster": fetch_poster(movie_data.movie_id),
+                "vote_average": movie_data.vote_average,
+                "release_date": movie_data.release_date,
+                "runtime": movie_data.runtime,
+                "original_language": movie_data.original_language,
+                "genres": movie_data.genres,
+                "crew": movie_data.crew,
+                "cast": movie_data.cast,
+                "popularity": movie_data.popularity,
+                "budget": movie_data.budget,
+                "status": movie_data.status,
+                "overview": movie_data.overview,
+                "homepage": movie_data.homepage
+            })
+        return recommendations
+    except Exception as e:
+        st.error(f"Error in recommendation: {e}")
         return []
 
 try:
