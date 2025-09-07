@@ -61,21 +61,21 @@ def recommend(movie):
         for i in movies_list:
             movie_data = movies.iloc[i[0]]
             recommendations.append({
-                "title": movie_data.title,
-                "movie_id": movie_data.movie_id,
-                "poster": fetch_poster(movie_data.movie_id),
-                "vote_average": movie_data.vote_average,
-                "release_date": movie_data.release_date,
-                "runtime": movie_data.runtime,
-                "original_language": movie_data.original_language,
-                "genres": movie_data.genres,
-                "crew": movie_data.crew,
-                "cast": movie_data.cast,
-                "popularity": movie_data.popularity,
-                "budget": movie_data.budget,
-                "status": movie_data.status,
-                "overview": movie_data.overview,
-                "homepage": movie_data.homepage
+                'title': movie_data['title'],
+                'overview': movie_data.get('overview', ''),
+                'genres': movie_data.get('genres', []),
+                'cast': movie_data.get('cast', []),
+                'crew': movie_data.get('crew', []),
+                'keywords': movie_data.get('keywords', []),
+                'poster': fetch_poster(movie_data.get('movie_id', 0)),
+                'popularity': movie_data.get('popularity', 0),
+                'budget': movie_data.get('budget', 0),
+                'homepage': movie_data.get('homepage', ''),
+                'release_date': movie_data.get('release_date', ''),
+                'runtime': movie_data.get('runtime', 0),
+                'status': movie_data.get('status', ''),
+                'original_language': movie_data.get('original_language', ''),
+                'vote_average': movie_data.get('vote_average', 0)
             })
         return recommendations
     except Exception as e:
@@ -84,9 +84,8 @@ def recommend(movie):
 
 try:
     with open('movies_data.pkl', 'rb') as f:
-        movies_data = pickle.load(f)
-    movies = pd.DataFrame(movies_data)
-
+        movies = pickle.load(f)
+    
     with open('similarity.pkl', 'rb') as f:
         similarity = pickle.load(f)
 except FileNotFoundError as e:
@@ -120,38 +119,39 @@ if st.sidebar.button("Recommend"):
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.image(fetch_poster(selected_movie_data.movie_id), use_container_width=True)
+            st.image(fetch_poster(selected_movie_data.get('movie_id', 0)), use_container_width=True)
 
         with col2:
             st.markdown(f"""
-                <h3 style="margin:0;">{selected_movie_data.title}</h3>
+                <h3 style="margin:0;">{selected_movie_data['title']}</h3>
                 <p style="margin:5px 0; color:#555;">
-                    ⭐ {selected_movie_data.vote_average}/10
+                    ⭐ {selected_movie_data.get('vote_average', 0)}/10
                 </p>
                 <p style="margin:0; color:gray;">
-                    📅 {selected_movie_data.release_date} &nbsp;&nbsp; | &nbsp;&nbsp; 
-                    ⏳ {int(selected_movie_data.runtime)} min &nbsp;&nbsp; | &nbsp;&nbsp;
-                    🌍 {selected_movie_data.original_language.upper()}
+                    📅 {selected_movie_data.get('release_date', 'N/A')} &nbsp;&nbsp; | &nbsp;&nbsp; 
+                    ⏳ {int(selected_movie_data.get('runtime', 0)) if selected_movie_data.get('runtime') else 'N/A'} min &nbsp;&nbsp; | &nbsp;&nbsp;
+                    🌍 {selected_movie_data.get('original_language', 'N/A').upper()}
                 </p>
                 <hr style="margin:10px 0;">
                 <p>
-                    <b>🎭 Genres:</b> {', '.join(selected_movie_data.genres)}<br>
-                    <b>🎬 Director:</b> {', '.join(selected_movie_data.crew)}<br>
-                    <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:5])}<br>
-                    <b>🔥 Popularity:</b> {round(selected_movie_data.popularity, 2)}<br>
-                    <b>💰 Budget:</b> ${selected_movie_data.budget:,}<br>
-                    <b>📌 Status:</b> {selected_movie_data.status}
+                    <b>🎭 Genres:</b> {', '.join(selected_movie_data.get('genres', []))}<br>
+                    <b>🎬 Director:</b> {', '.join(selected_movie_data.get('crew', []))}<br>
+                    <b>👥 Cast:</b> {', '.join(selected_movie_data.get('cast', [])[:5])}<br>
+                    <b>🔥 Popularity:</b> {round(selected_movie_data.get('popularity', 0), 2)}<br>
+                    <b>💰 Budget:</b> ${selected_movie_data.get('budget', 0):,}<br>
+                    <b>📌 Status:</b> {selected_movie_data.get('status', 'N/A')}
                 </p>
             """, unsafe_allow_html=True)
             # Overview section
             # Expander for overview
             with st.expander("📖 Overview"):
-                overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
+                overview_text = ' '.join(selected_movie_data.get('overview', [])) if isinstance(selected_movie_data.get('overview'), list) else selected_movie_data.get('overview', 'No overview available.')
                 st.write(overview_text)
         
             # Homepage link
-            if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
-                st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
+            homepage = selected_movie_data.get('homepage', '')
+            if homepage and homepage != "":
+                st.markdown(f"[🔗 Official Website]({homepage})", unsafe_allow_html=True)
 
         st.markdown("### 🎯 Recommended Movies")
         st.markdown("Here are some movies similar to your selection:")
