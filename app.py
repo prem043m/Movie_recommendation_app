@@ -9,12 +9,33 @@ st.markdown("""
         * {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        h1, h2, h3, h4, h5 {
-            font-weight: 600;
+        .main {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        p {
-            font-size: 14px;
-            line-height: 1.5;
+        .stApp {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .movie-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .rating {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            font-size: 1.2em;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -100,21 +121,25 @@ except Exception as e:
     st.error(f"Error loading data: {e}")
     st.stop()
 
-st.set_page_config(page_title="🎬 Movie Recommender", layout="wide")
-st.title("🎬 Movie Recommendation System")
+st.set_page_config(page_title="🎬 Movie Recommender", layout="wide", page_icon="🎬")
+st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 1.2em; color: #7f8c8d; margin-bottom: 2rem;'>Discover your next favorite movie with AI-powered recommendations</p>", unsafe_allow_html=True)
 
+st.sidebar.markdown("### 🔍 Movie Search")
 selected_movie_name = st.sidebar.selectbox(
-    "Search a movie:", movies['title'].values
+    "Choose a movie to get recommendations:", movies['title'].values
 )
+st.sidebar.markdown("---")
+st.sidebar.markdown("💡 **Tip:** Select any movie and click 'Get Recommendations' to discover similar films!")
 
-if st.sidebar.button("Recommend"):
+if st.sidebar.button("🎯 Get Recommendations", type="primary"):
     recommendations = recommend(selected_movie_name)
 
     if recommendations:
         # Selected movie
         selected_movie_data = movies[movies['title'] == selected_movie_name].iloc[0]
         
-        st.subheader(f"Selected Movie: **{selected_movie_name}**")
+        st.markdown(f"<div class='movie-card'><h2 style='color: #2c3e50; margin-bottom: 1rem;'>🎬 Selected Movie: {selected_movie_name}</h2></div>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 2])
 
         with col1:
@@ -123,7 +148,7 @@ if st.sidebar.button("Recommend"):
         with col2:
             st.markdown(f"""
                 <h3 style="margin:0;">{selected_movie_data.title}</h3>
-                <p style="margin:5px 0; color:#555;">
+                <p style="margin:5px 0;" class="rating">
                     ⭐ {selected_movie_data.vote_average}/10
                 </p>
                 <p style="margin:0; color:gray;">
@@ -143,16 +168,15 @@ if st.sidebar.button("Recommend"):
             """, unsafe_allow_html=True)
 
             # Overview section
-            st.markdown("#### 📖 Overview")
-            overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
-            st.write(overview_text)
+            with st.expander("📖 Overview"):
+                overview_text = ' '.join(selected_movie_data.overview) if isinstance(selected_movie_data.overview, list) else selected_movie_data.overview
+                st.write(overview_text)
 
             # Homepage
             if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
                 st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
 
-        st.markdown("### 🎯 Recommended Movies")
-        st.markdown("Here are some movies similar to your selection:")
+        st.markdown("<div style='margin: 3rem 0 2rem 0;'><h2 style='color: #2c3e50; text-align: center;'>🎯 Movies You Might Love</h2><p style='text-align: center; color: #7f8c8d;'>Based on your selection, here are our top recommendations:</p></div>", unsafe_allow_html=True)
 
         # Recommended movies
         for i, movie in enumerate(recommendations, 1):
@@ -164,7 +188,7 @@ if st.sidebar.button("Recommend"):
             with col2:
                 st.markdown(f"""
                     <h3 style="margin:0;">{movie['title']}</h3>
-                    <p style="margin:5px 0; color:#555;">
+                    <p style="margin:5px 0;" class="rating">
                         ⭐ {movie['vote_average']}/10
                     </p>
                     <p style="margin:0; color:gray;">
@@ -184,14 +208,14 @@ if st.sidebar.button("Recommend"):
                 """, unsafe_allow_html=True)
 
                 # Overview
-                st.markdown("#### 📖 Overview")
-                overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
-                st.write(overview_text if overview_text else "No overview available.")
+                with st.expander("📖 Overview"):
+                    overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
+                    st.write(overview_text if overview_text else "No overview available.")
 
                 # Homepage
                 if movie['homepage']:
                     st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
 
-            st.markdown("---")
+            st.markdown("<div style='margin: 2rem 0; border-bottom: 2px solid #ecf0f1;'></div>", unsafe_allow_html=True)
     else:
         st.error("Sorry, couldn't find recommendations for this movie.")
