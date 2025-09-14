@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import pickle
 import requests
+from difflib import get_close_matches
 
+st.set_page_config(page_title="🎬 Movie Recommender", layout="wide", page_icon="🎬")
 
 st.markdown("""
     <style>
@@ -16,11 +18,11 @@ st.markdown("""
             background: linear-gradient(135deg, #4a4a4a 0%, #2c2c2c 100%);
         }
         h1 {
-            color: #2c3e50;
+            color: #ffffff;
             text-align: center;
             font-size: 3rem;
             margin-bottom: 2rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         .movie-card {
             background: white;
@@ -42,38 +44,34 @@ st.markdown("""
 
 api_key = st.secrets["TMDB_API_KEY"]
 
+@st.cache_data
 def fetch_poster(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
-    response = requests.get(url)
-    data = response.json()
-    return "https://image.tmdb.org/t/p/w500" + data['poster_path'] if data.get("poster_path") else None
+    try:
+        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        return "https://image.tmdb.org/t/p/w500" + data['poster_path'] if data.get("poster_path") else None
+    except:
+        return None
 
 def recommend(movie):
     try:
-        # Normalize the input (ignore case and spaces)
         movie = movie.strip().lower()
-
-        # Make a clean version of titles
         movies['title_clean'] = movies['title'].str.strip().str.lower()
 
-        # Find the movie
         movie_matches = movies[movies['title_clean'] == movie]
         if movie_matches.empty:
-            return []  # No match found
+            return [] 
 
         movie_index = movie_matches.index[0]
-
-        # Get similarity scores
         distances = similarity[movie_index]
-
-        # Sort movies by similarity
         movies_list = sorted(
             list(enumerate(distances)),
             reverse=True,
             key=lambda x: x[1]
-        )[1:6]  # Top 5 recommendations
+        )[1:11] 
 
-        # Build recommendations
         recommended_movies = []
         for i in movies_list:
             movie_data = movies.iloc[i[0]]
@@ -96,44 +94,109 @@ def recommend(movie):
             })
 
         return recommended_movies
-
     except Exception as e:
         st.error(f"Error in recommendation: {e}")
         return []
 
 
-try:
+@st.cache_data
+def load_data():
     with open("movies_data.pkl", "rb") as f:
         movies = pickle.load(f)
         if not isinstance(movies, pd.DataFrame):
             movies = pd.DataFrame(movies)
-
     with open("similarity.pkl", "rb") as f:
         similarity = pickle.load(f)
-
-    # Pre-clean title column for matching
     movies["title_clean"] = movies["title"].str.strip().str.lower()
+    return movies, similarity
 
+try:
+    movies, similarity = load_data()
 except FileNotFoundError as e:
     st.error(f"Required file missing: {e}")
     st.stop()
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    st.stop()
 
-st.set_page_config(page_title="🎬 Movie Recommender", layout="wide", page_icon="🎬")
+if 'recommendations' not in st.session_state:
+    st.session_state.recommendations = []
+if 'selected_movie' not in st.session_state:
+    st.session_state.selected_movie = None
+
 st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 1.2em; color: #7f8c8d; margin-bottom: 2rem;'>Discover your next favorite movie with AI-powered recommendations</p>", unsafe_allow_html=True)
 
 st.sidebar.markdown("### 🔍 Movie Search")
-selected_movie_name = st.sidebar.selectbox(
-    "Choose a movie to get recommendations:", movies['title'].values
-)
+search_query = st.sidebar.text_input("Search for a movie: ",placeholder="Type movie name....")
+
+
+all_genres = set()
+for genres_list in movies['genres']:
+    if isinstance(genres_list,list):
+        all_genres.update(genres_list)
+genres_filter = st.sidebar.selectbox("Filter by genre:", ["All Genres"] + sorted(list(all_genres)))
+
+min_rating = st.sidebar.slider("Minimum Rating: ", 0.0,10.0,0.0,0.1)
+
+# Year filter
+movies['year'] = pd.to_datetime(movies['release_date'], errors='coerce').dt.year
+min_year = int(movies['year'].min()) if not movies['year'].isna().all() else 1900
+max_year = int(movies['year'].max()) if not movies['year'].isna().all() else 2024
+year_range = st.sidebar.slider("Release Year Range:", min_year, max_year, (min_year, max_year))
+
+filtered_movies = movies.copy()
+if genres_filter != "All Genres":
+    filtered_movies = filtered_movies[filtered_movies['genres'].apply(
+        lambda x : genres_filter in x if isinstance(x, list )
+        else False
+    )]
+filtered_movies = filtered_movies[filtered_movies['vote_average']>= min_rating]
+filtered_movies = filtered_movies[
+    (filtered_movies['year'] >= year_range[0]) & 
+    (filtered_movies['year'] <= year_range[1])
+]
+
+# search logic
+selected_movie_name = None
+if search_query:
+    movie_title = filtered_movies['title'].tolist()
+    matches = get_close_matches(search_query, movie_title, n = 10 , cutoff=0.3)
+    if matches :
+        selected_movie_name = st.sidebar.selectbox("Select from matches:", matches)
+    else:
+        st.sidebar.error("NO movies found matching your search.")    
+else:
+    if not filtered_movies.empty:
+        selected_movie_name = st.sidebar.selectbox("Choose a movie :", filtered_movies['title'].values)                                     
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("💡 **Tip:** Select any movie and click 'Get Recommendations' to discover similar films!")
 
+if st.sidebar.button("🔄 Clear Recommendations"):
+    st.session_state.recommendations = []
+    st.session_state.selected_movie = None
+    st.rerun()
+
+st.sidebar.markdown("### 📊 Quick Stats")
+st.sidebar.metric("Total Movies", len(movies))
+st.sidebar.metric("Filtered Movies", len(filtered_movies))
+st.sidebar.metric("Available Genres", len(all_genres))
+
+# Favorites section
+if 'favorites' in st.session_state and st.session_state.favorites:
+    st.sidebar.markdown("### ⭐ Favorites")
+    for fav in st.session_state.favorites[-3:]:  # Show last 3
+        st.sidebar.write(f"• {fav['title']}")
+    if st.sidebar.button("View All Favorites"):
+        st.session_state.show_favorites = True
+
 if st.sidebar.button("🎯 Get Recommendations", type="primary"):
-    recommendations = recommend(selected_movie_name)
+    with st.spinner('🎬 Getting recommendations...'):
+        recommendations = recommend(selected_movie_name)
+        st.session_state.recommendations = recommendations
+        st.session_state.selected_movie = selected_movie_name
+
+if st.session_state.recommendations:
+    recommendations = st.session_state.recommendations
+    selected_movie_name = st.session_state.selected_movie
 
     if recommendations:
         # Selected movie
@@ -153,7 +216,7 @@ if st.sidebar.button("🎯 Get Recommendations", type="primary"):
                 </p>
                 <p style="margin:0; color:gray;">
                     📅 {selected_movie_data.release_date} &nbsp;&nbsp; | &nbsp;&nbsp; 
-                    ⏳ {int(selected_movie_data.runtime)} min &nbsp;&nbsp; | &nbsp;&nbsp;
+                    ⏳ {int(selected_movie_data.runtime) if pd.notna(selected_movie_data.runtime) else 'N/A'} min &nbsp;&nbsp; | &nbsp;&nbsp;
                     🌍 {selected_movie_data.original_language.upper()}
                 </p>
                 <hr style="margin:10px 0;">
@@ -162,7 +225,7 @@ if st.sidebar.button("🎯 Get Recommendations", type="primary"):
                     <b>🎬 Director:</b> {', '.join(selected_movie_data.crew) if isinstance(selected_movie_data.crew, list) else 'N/A'}<br>
                     <b>👥 Cast:</b> {', '.join(selected_movie_data.cast[:3]) if isinstance(selected_movie_data.cast, list) else 'N/A'}<br>
                     <b>🔥 Popularity:</b> {round(selected_movie_data.popularity, 2)}<br>
-                    <b>💰 Budget:</b> ${selected_movie_data.budget:,}<br>
+                    <b>💰 Budget:</b> ${selected_movie_data.budget:,} if pd.notna(selected_movie_data.budget) and selected_movie_data.budget > 0 else 'N/A'<br>
                     <b>📌 Status:</b> {selected_movie_data.status}
                 </p>
             """, unsafe_allow_html=True)
@@ -212,10 +275,63 @@ if st.sidebar.button("🎯 Get Recommendations", type="primary"):
                     overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
                     st.write(overview_text if overview_text else "No overview available.")
 
-                # Homepage
+                # Homepage and trailer
                 if movie['homepage']:
                     st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
+                
+                # Add to favorites
+                if st.button(f"⭐ Add to Favorites", key=f"fav_{i}"):
+                    if 'favorites' not in st.session_state:
+                        st.session_state.favorites = []
+                    if movie['title'] not in [fav['title'] for fav in st.session_state.favorites]:
+                        st.session_state.favorites.append(movie)
+                        st.success(f"Added {movie['title']} to favorites!")
+                    else:
+                        st.info("Already in favorites!")
 
             st.markdown("<div style='margin: 2rem 0; border-bottom: 2px solid #ecf0f1;'></div>", unsafe_allow_html=True)
+        
+        # Export functionality
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Save Recommendations"):
+                rec_data = pd.DataFrame(recommendations)
+                csv = rec_data.to_csv(index=False)
+                st.download_button(
+                    label="📎 Download CSV",
+                    data=csv,
+                    file_name=f"recommendations_{selected_movie_name.replace(' ', '_')}.csv",
+                    mime="text/csv"
+                )
+        with col2:
+            if st.button("🔄 Get New Recommendations"):
+                st.session_state.recommendations = []
+                st.session_state.selected_movie = None
+                st.rerun()
     else:
         st.error("Sorry, couldn't find recommendations for this movie.")
+
+# Show favorites if requested
+if st.session_state.get('show_favorites', False):
+    st.markdown("<h2 style='color: #2c3e50; text-align: center;'>⭐ Your Favorite Movies</h2>", unsafe_allow_html=True)
+    if 'favorites' in st.session_state and st.session_state.favorites:
+        for i, fav in enumerate(st.session_state.favorites):
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col1:
+                st.image(fav['poster'], use_container_width=True)
+            with col2:
+                st.write(f"**{fav['title']}** - ⭐ {fav['vote_average']}/10")
+                st.write(f"🎭 {', '.join(fav['genres'][:3]) if fav['genres'] else 'N/A'}")
+            with col3:
+                if st.button("Remove", key=f"remove_{i}"):
+                    st.session_state.favorites.pop(i)
+                    st.rerun()
+        if st.button("Hide Favorites"):
+            st.session_state.show_favorites = False
+            st.rerun()
+    else:
+        st.info("No favorites added yet!")
+        if st.button("Hide Favorites"):
+            st.session_state.show_favorites = False
+            st.rerun()
