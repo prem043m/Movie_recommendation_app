@@ -98,7 +98,6 @@ def recommend(movie):
         st.error(f"Error in recommendation: {e}")
         return []
 
-
 @st.cache_data
 def load_data():
     with open("movies_data.pkl", "rb") as f:
@@ -116,25 +115,31 @@ except FileNotFoundError as e:
     st.error(f"Required file missing: {e}")
     st.stop()
 
+# Initialize session state
 if 'recommendations' not in st.session_state:
     st.session_state.recommendations = []
 if 'selected_movie' not in st.session_state:
     st.session_state.selected_movie = None
+if 'favorites' not in st.session_state:
+    st.session_state.favorites = []
+if 'user_ratings' not in st.session_state:
+    st.session_state.user_ratings = {}
 
 st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 1.2em; color: #7f8c8d; margin-bottom: 2rem;'>Discover your next favorite movie with AI-powered recommendations</p>", unsafe_allow_html=True)
 
+# Sidebar
 st.sidebar.markdown("### 🔍 Movie Search")
-search_query = st.sidebar.text_input("Search for a movie: ",placeholder="Type movie name....")
+search_query = st.sidebar.text_input("Search for a movie: ", placeholder="Type movie name....")
 
-
+# Filters
 all_genres = set()
 for genres_list in movies['genres']:
-    if isinstance(genres_list,list):
+    if isinstance(genres_list, list):
         all_genres.update(genres_list)
 genres_filter = st.sidebar.selectbox("Filter by genre:", ["All Genres"] + sorted(list(all_genres)))
 
-min_rating = st.sidebar.slider("Minimum Rating: ", 0.0,10.0,0.0,0.1)
+min_rating = st.sidebar.slider("Minimum Rating: ", 0.0, 10.0, 0.0, 0.1)
 
 # Year filter
 movies['year'] = pd.to_datetime(movies['release_date'], errors='coerce').dt.year
@@ -142,58 +147,69 @@ min_year = int(movies['year'].min()) if not movies['year'].isna().all() else 190
 max_year = int(movies['year'].max()) if not movies['year'].isna().all() else 2024
 year_range = st.sidebar.slider("Release Year Range:", min_year, max_year, (min_year, max_year))
 
+# Apply filters
 filtered_movies = movies.copy()
 if genres_filter != "All Genres":
     filtered_movies = filtered_movies[filtered_movies['genres'].apply(
-        lambda x : genres_filter in x if isinstance(x, list )
-        else False
+        lambda x: genres_filter in x if isinstance(x, list) else False
     )]
-filtered_movies = filtered_movies[filtered_movies['vote_average']>= min_rating]
+filtered_movies = filtered_movies[filtered_movies['vote_average'] >= min_rating]
 filtered_movies = filtered_movies[
     (filtered_movies['year'] >= year_range[0]) & 
     (filtered_movies['year'] <= year_range[1])
 ]
 
-# search logic
+# Search logic
 selected_movie_name = None
 if search_query:
     movie_title = filtered_movies['title'].tolist()
-    matches = get_close_matches(search_query, movie_title, n = 10 , cutoff=0.3)
-    if matches :
+    matches = get_close_matches(search_query, movie_title, n=10, cutoff=0.3)
+    if matches:
         selected_movie_name = st.sidebar.selectbox("Select from matches:", matches)
     else:
         st.sidebar.error("NO movies found matching your search.")    
 else:
     if not filtered_movies.empty:
-        selected_movie_name = st.sidebar.selectbox("Choose a movie :", filtered_movies['title'].values)                                     
+        selected_movie_name = st.sidebar.selectbox("Choose a movie:", filtered_movies['title'].values)
+
+# User rating system
+if selected_movie_name:
+    user_rating = st.sidebar.slider(f"Rate '{selected_movie_name}':", 1, 5, 3)
+    if st.sidebar.button("⭐ Save Rating"):
+        st.session_state.user_ratings[selected_movie_name] = user_rating
+        st.sidebar.success(f"Rated {user_rating}/5 stars!")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("💡 **Tip:** Select any movie and click 'Get Recommendations' to discover similar films!")
 
+# Control buttons
 if st.sidebar.button("🔄 Clear Recommendations"):
     st.session_state.recommendations = []
     st.session_state.selected_movie = None
     st.rerun()
 
+# Quick stats
 st.sidebar.markdown("### 📊 Quick Stats")
 st.sidebar.metric("Total Movies", len(movies))
 st.sidebar.metric("Filtered Movies", len(filtered_movies))
 st.sidebar.metric("Available Genres", len(all_genres))
 
 # Favorites section
-if 'favorites' in st.session_state and st.session_state.favorites:
+if st.session_state.favorites:
     st.sidebar.markdown("### ⭐ Favorites")
-    for fav in st.session_state.favorites[-3:]:  # Show last 3
+    for fav in st.session_state.favorites[-3:]:
         st.sidebar.write(f"• {fav['title']}")
     if st.sidebar.button("View All Favorites"):
         st.session_state.show_favorites = True
 
-if st.sidebar.button("🎯 Get Recommendations", type="primary"):
+# Get recommendations
+if st.sidebar.button("🎯 Get Recommendations", type="primary") and selected_movie_name:
     with st.spinner('🎬 Getting recommendations...'):
         recommendations = recommend(selected_movie_name)
         st.session_state.recommendations = recommendations
         st.session_state.selected_movie = selected_movie_name
 
+# Display recommendations
 if st.session_state.recommendations:
     recommendations = st.session_state.recommendations
     selected_movie_name = st.session_state.selected_movie
@@ -239,6 +255,12 @@ if st.session_state.recommendations:
             if pd.notna(selected_movie_data.homepage) and selected_movie_data.homepage != "":
                 st.markdown(f"[🔗 Official Website]({selected_movie_data.homepage})", unsafe_allow_html=True)
 
+        # Show user ratings
+        if st.session_state.user_ratings:
+            with st.expander("📊 Your Ratings"):
+                for movie, rating in st.session_state.user_ratings.items():
+                    st.write(f"⭐ {movie}: {rating}/5")
+
         st.markdown("<div style='margin: 3rem 0 2rem 0;'><h2 style='color: #2c3e50; text-align: center;'>🎯 Movies You Might Love</h2><p style='text-align: center; color: #7f8c8d;'>Based on your selection, here are our top recommendations:</p></div>", unsafe_allow_html=True)
 
         # Recommended movies
@@ -275,14 +297,12 @@ if st.session_state.recommendations:
                     overview_text = ' '.join(movie['overview']) if isinstance(movie['overview'], list) else movie['overview']
                     st.write(overview_text if overview_text else "No overview available.")
 
-                # Homepage and trailer
+                # Homepage
                 if movie['homepage']:
                     st.markdown(f"[🔗 Official Website]({movie['homepage']})", unsafe_allow_html=True)
                 
                 # Add to favorites
                 if st.button(f"⭐ Add to Favorites", key=f"fav_{i}"):
-                    if 'favorites' not in st.session_state:
-                        st.session_state.favorites = []
                     if movie['title'] not in [fav['title'] for fav in st.session_state.favorites]:
                         st.session_state.favorites.append(movie)
                         st.success(f"Added {movie['title']} to favorites!")
@@ -315,7 +335,7 @@ if st.session_state.recommendations:
 # Show favorites if requested
 if st.session_state.get('show_favorites', False):
     st.markdown("<h2 style='color: #2c3e50; text-align: center;'>⭐ Your Favorite Movies</h2>", unsafe_allow_html=True)
-    if 'favorites' in st.session_state and st.session_state.favorites:
+    if st.session_state.favorites:
         for i, fav in enumerate(st.session_state.favorites):
             col1, col2, col3 = st.columns([1, 3, 1])
             with col1:
@@ -335,3 +355,17 @@ if st.session_state.get('show_favorites', False):
         if st.button("Hide Favorites"):
             st.session_state.show_favorites = False
             st.rerun()
+
+# Show popular movies when no recommendations
+if not st.session_state.recommendations:
+    st.markdown("### 🔥 Popular Movies")
+    popular_movies = movies.nlargest(10, 'popularity')
+    
+    cols = st.columns(5)
+    for idx, (_, movie) in enumerate(popular_movies.iterrows()):
+        with cols[idx % 5]:
+            poster = fetch_poster(movie['movie_id'])
+            if poster:
+                st.image(poster, use_container_width=True)
+            st.write(f"**{movie['title']}**")
+            st.write(f"⭐ {movie['vote_average']}/10")
