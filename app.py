@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 import pickle
 import requests
+import os
+from dotenv import load_dotenv
 from difflib import get_close_matches
+
+load_dotenv()
 
 st.set_page_config(page_title="🎬 Movie Recommender", layout="wide", page_icon="🎬")
 
@@ -42,10 +46,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-api_key = st.secrets["TMDB_API_KEY"]
+api_key = ""
+try:
+    api_key = st.secrets["TMDB_API_KEY"]
+except Exception:
+    api_key = os.getenv("TMDB_API_KEY", "")
+
+if not api_key:
+    st.warning(
+        "TMDB API key not found. For local runs, add TMDB_API_KEY in .env. "
+        "For Streamlit Cloud, add it in app Secrets."
+    )
 
 @st.cache_data
 def fetch_poster(movie_id):
+    if not api_key:
+        return None
+
     try:
         url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
         response = requests.get(url, timeout=5)
@@ -54,6 +71,13 @@ def fetch_poster(movie_id):
         return "https://image.tmdb.org/t/p/w500" + data['poster_path'] if data.get("poster_path") else None
     except:
         return None
+
+
+def render_poster(poster_url):
+    if poster_url:
+        st.image(poster_url, use_container_width=True)
+    else:
+        st.caption("Poster unavailable")
 
 def recommend(movie):
     try:
@@ -64,6 +88,7 @@ def recommend(movie):
         if movie_matches.empty:
             return [] 
 
+        # Use positional index to match the similarity matrix row positions.
         movie_index = movie_matches.index[0]
         distances = similarity[movie_index]
         movies_list = sorted(
@@ -106,6 +131,15 @@ def load_data():
             movies = pd.DataFrame(movies)
     with open("similarity.pkl", "rb") as f:
         similarity = pickle.load(f)
+
+    # Ensure dataframe row positions align with similarity matrix indices.
+    movies = movies.reset_index(drop=True)
+
+    if len(movies) != len(similarity):
+        valid_size = min(len(movies), len(similarity))
+        movies = movies.iloc[:valid_size].reset_index(drop=True)
+        similarity = similarity[:valid_size, :valid_size]
+
     movies["title_clean"] = movies["title"].str.strip().str.lower()
     return movies, similarity
 
@@ -222,7 +256,7 @@ if st.session_state.recommendations:
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.image(fetch_poster(selected_movie_data.movie_id), use_container_width=True)
+            render_poster(fetch_poster(selected_movie_data.movie_id))
 
         with col2:
             st.markdown(f"""
@@ -268,7 +302,7 @@ if st.session_state.recommendations:
             col1, col2 = st.columns([1, 2])
 
             with col1:
-                st.image(movie['poster'], use_container_width=True)
+                render_poster(movie['poster'])
 
             with col2:
                 st.markdown(f"""
@@ -339,7 +373,7 @@ if st.session_state.get('show_favorites', False):
         for i, fav in enumerate(st.session_state.favorites):
             col1, col2, col3 = st.columns([1, 3, 1])
             with col1:
-                st.image(fav['poster'], use_container_width=True)
+                render_poster(fav['poster'])
             with col2:
                 st.write(f"**{fav['title']}** - ⭐ {fav['vote_average']}/10")
                 st.write(f"🎭 {', '.join(fav['genres'][:3]) if fav['genres'] else 'N/A'}")
@@ -365,7 +399,6 @@ if not st.session_state.recommendations:
     for idx, (_, movie) in enumerate(popular_movies.iterrows()):
         with cols[idx % 5]:
             poster = fetch_poster(movie['movie_id'])
-            if poster:
-                st.image(poster, use_container_width=True)
+            render_poster(poster)
             st.write(f"**{movie['title']}**")
             st.write(f"⭐ {movie['vote_average']}/10")
