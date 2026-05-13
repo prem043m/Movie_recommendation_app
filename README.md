@@ -1,64 +1,122 @@
-<<<<<<< HEAD
+# CineMatch — Movie Recommendation App
 
-# Movie Recommendation App
+Content-based movie recommender split into two independently hosted services:
 
-Streamlit app that recommends similar movies using a precomputed similarity matrix.
+| Layer    | Tech          | Host   |
+|----------|---------------|--------|
+| Backend  | FastAPI + sklearn | [Render.com](https://render.com) |
+| Frontend | HTML + CSS + JS   | [Vercel.com](https://vercel.com) |
 
-## Features
-- Movie search and filters
-- Top recommendations with metadata
-- Optional poster fetching from TMDB API
-- Works locally and on Streamlit Cloud
+---
+
+## Architecture
+
+```
+Browser → Vercel (frontend/) → Render (api/recommend.py) → TMDB API
+```
+
+- The frontend is a **zero-dependency static site** (no build step needed).
+- The backend builds the similarity matrix from CSV files at startup — no Git LFS required.
+
+---
+
+## Folder Structure
+
+```
+Movie_recommendation_app/
+├── api/
+│   ├── recommend.py        ← FastAPI app (Render)
+│   └── requirements.txt    ← Backend deps
+├── frontend/
+│   ├── index.html          ← Single-page app (Vercel)
+│   ├── style.css
+│   ├── app.js
+│   └── vercel.json
+├── tmdb_5000_movies.csv    ← Source data (required by backend)
+├── tmdb_5000_credits.csv   ← Source data (required by backend)
+├── render.yaml             ← Render deployment blueprint
+└── requirements.txt        ← Legacy Streamlit deps (not used for deploy)
+```
+
+---
+
+## Deploy — Backend (Render)
+
+1. Push this repo to GitHub.
+2. Go to [render.com](https://render.com) → **New → Web Service**.
+3. Connect your GitHub repo.
+4. Settings:
+   - **Root Directory**: `Movie_recommendation_app`
+   - **Build command**: `pip install -r api/requirements.txt`
+   - **Start command**: `uvicorn api.recommend:app --host 0.0.0.0 --port $PORT`
+5. Under **Environment Variables**, add:
+   ```
+   TMDB_API_KEY = <your TMDB API key>
+   ```
+6. Click **Deploy**. First startup takes ~60 s (building similarity matrix).
+7. Note your Render URL, e.g. `https://movie-recommender-api.onrender.com`.
+
+### Health check
+```
+GET https://your-service.onrender.com/health
+→ {"status":"ok","movies_loaded":4807}
+```
+
+---
+
+## Deploy — Frontend (Vercel)
+
+1. Open `frontend/app.js` and set `API_BASE` to your Render URL:
+   ```js
+   const API_BASE = "https://movie-recommender-api.onrender.com";
+   ```
+2. Push to GitHub.
+3. Go to [vercel.com](https://vercel.com) → **New Project**.
+4. Connect the same repo.
+5. Settings:
+   - **Root Directory**: `Movie_recommendation_app/frontend`
+   - Framework preset: **Other** (plain static)
+6. Click **Deploy** → your site is live.
+
+---
 
 ## Run Locally
-1. Create and activate a virtual environment.
-2. Install dependencies:
 
+### Backend
 ```bash
-pip install -r requirements.txt
+cd Movie_recommendation_app
+pip install -r api/requirements.txt
+uvicorn api.recommend:app --reload
+# → http://localhost:8000
+# → http://localhost:8000/docs  (interactive Swagger UI)
 ```
 
-3. Create a local env file from template:
-
+### Frontend
+Just open `frontend/index.html` in a browser, **or**:
 ```bash
-copy .env.example .env
+cd Movie_recommendation_app/frontend
+python -m http.server 3000
+# → http://localhost:3000
 ```
 
-4. Open `.env` and set your TMDB key:
+> **Note**: Update `API_BASE` in `app.js` to `http://localhost:8000` for local development.
 
-```env
-TMDB_API_KEY=your_tmdb_api_key_here
-```
+---
 
-5. Start the app:
+## API Reference
 
-```bash
-streamlit run app.py
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/health` | Health check |
+| `GET`  | `/movies?q=<query>&limit=50` | List / fuzzy-search titles |
+| `POST` | `/recommend` | `{"title":"...", "n":10}` → recommendations |
+| `GET`  | `/poster/{movie_id}` | Proxy TMDB poster URL |
 
-## Deploy On Streamlit Cloud
-1. Push this repository to GitHub.
-2. In Streamlit Cloud, create a new app and select this repo.
-3. Set main file path to `app.py`.
-4. In App Settings -> Secrets, add:
+---
 
-```toml
-TMDB_API_KEY = "your_tmdb_api_key_here"
-```
+## Environment Variables
 
-5. Deploy.
-
-## Secret Handling
-- Local: app reads `.env` automatically.
-- Cloud: app reads Streamlit Secrets (`st.secrets`).
-- If no key is configured, the app still runs but poster images are disabled.
-
-## Project Files
-- `app.py`: main Streamlit app
-- `movies_data.pkl`: processed movie data
-- `similarity.pkl`: similarity matrix
-- `.env.example`: local environment template
-- `.streamlit/secrets.toml.example`: Streamlit secrets template
-=======
-glow
->>>>>>> fd27852 ( risk managed)
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `TMDB_API_KEY` | Render dashboard | Fetches movie posters |
+| `ALLOW_UNSAFE_PICKLE` | Optional, Render | Set to `1` to use prebuilt `.pkl` files instead of CSV |
