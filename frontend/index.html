@@ -235,7 +235,30 @@
             width: 100%;
             aspect-ratio: 2/3;
             object-fit: cover;
-            transition: filter 0.4s ease;
+            transition: filter 0.4s ease, opacity 0.4s ease;
+        }
+
+        .video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+            background: black;
+        }
+
+        .video-container.active {
+            opacity: 1;
+        }
+
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(1.3); /* Zoom in to hide YouTube UI elements */
         }
 
         .movie-card:hover img {
@@ -314,8 +337,17 @@
         <ul class="nav-links">
             <li><a href="#">Movies</a></li>
             <li><a href="#">TV Shows</a></li>
-            <li><a href="#">New & Popular</a></li>
             <li id="kb-hint" style="font-size: 0.7rem; color: var(--text-secondary); cursor: help; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 4px;">CMD + K for Search</li>
+            <li style="position: relative;">
+                <button id="settings-btn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;">⚙️</button>
+                <div id="settings-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--graphite); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 10px; width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; cursor: pointer;">
+                        Video Previews
+                        <input type="checkbox" id="preview-toggle" checked>
+                    </label>
+                </div>
+            </li>
+            <li><button id="auth-btn" style="background: var(--glass); color: white; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-weight: 600;">Sign In</button></li>
         </ul>
         <div class="search-icon">🔍</div>
     </nav>

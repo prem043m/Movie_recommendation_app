@@ -255,36 +255,54 @@ def get_poster(movie_id: int):
 # Smart Gateway Helpers
 # ---------------------------------------------------------------------------
 
-def _get_local_recommendations(idx: int, n: int) -> List[dict]:
+def _get_movie_preview(tmdb_id: int) -> Optional[str]:
+    """Fetch the first YouTube trailer key for a given TMDB ID."""
+    if not TMDB_API_KEY or not tmdb_id:
+        return None
+    try:
+        url = f"{TMDB_BASE}/movie/{tmdb_id}/videos?api_key={TMDB_API_KEY}"
+        r = requests.get(url, timeout=3)
+        r.raise_for_status()
+        videos = r.json().get("results", [])
+        for v in videos:
+            if v.get("site") == "YouTube" and v.get("type") in ["Trailer", "Teaser"]:
+                return f"https://www.youtube.com/embed/{v['key']}?autoplay=1&mute=1&controls=0&loop=1&playlist={v['key']}"
+        return None
+    except Exception:
+        return None
+
+def _get_local_recommendations(idx: int, n: int, role: str = "guest") -> List[dict]:
     """Path 1: Local ML Recommendations."""
     try:
         distances = similarity[idx]
-        # Handle float16 similarity if loaded
         top = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1 : n + 1]
         
         results = []
         for i, score in top:
             row = movies_df.iloc[i]
+            is_member = (role == "member")
+            
             results.append({
                 "id": int(row["movie_id"]) if pd.notna(row.get("movie_id")) else 0,
                 "title": str(row["title"]),
-                "overview": str(row.get("overview", "")),
-                "poster_path": None, # Will be fetched by client or proxy
-                "vote_average": float(row.get("vote_average", 0.0)),
-                "release_date": str(row.get("release_date", "")),
+                "year": str(row.get("release_date", ""))[:4],
+                "poster_path": None,
+                "overview": str(row.get("overview", "")) if is_member else "Sign in to view summary",
+                "vote_average": float(row.get("vote_average", 0.0)) if is_member else 0.0,
+                "preview_url": _get_movie_preview(int(row["movie_id"])) if is_member else None,
+                "is_restricted": not is_member,
                 "source": "local"
             })
         return results
     except Exception:
         return []
 
-def _get_tmdb_recommendations(title: str, n: int) -> List[dict]:
+def _get_tmdb_recommendations(title: str, n: int, role: str = "guest") -> List[dict]:
     """Path 2: TMDB API Fallback."""
     if not TMDB_API_KEY:
         return []
         
     try:
-        # 1. Search for movie ID
         search_url = f"{TMDB_BASE}/search/movie?api_key={TMDB_API_KEY}&query={title}"
         r = requests.get(search_url, timeout=5)
         r.raise_for_status()
@@ -294,37 +312,41 @@ def _get_tmdb_recommendations(title: str, n: int) -> List[dict]:
             return []
             
         tmdb_id = search_data["results"][0]["id"]
-        
-        # 2. Get recommendations
         rec_url = f"{TMDB_BASE}/movie/{tmdb_id}/recommendations?api_key={TMDB_API_KEY}"
         r = requests.get(rec_url, timeout=5)
         r.raise_for_status()
         rec_data = r.json()
         
         results = []
+        is_member = (role == "member")
         for item in rec_data.get("results", [])[:n]:
             results.append({
                 "id": int(item["id"]),
                 "title": str(item["title"]),
-                "overview": str(item.get("overview", "")),
+                "year": str(item.get("release_date", ""))[:4],
                 "poster_path": item.get("poster_path"),
-                "vote_average": float(item.get("vote_average", 0.0)),
-                "release_date": str(item.get("release_date", "")),
+                "overview": str(item.get("overview", "")) if is_member else "Sign in to view summary",
+                "vote_average": float(item.get("vote_average", 0.0)) if is_member else 0.0,
+                "preview_url": _get_movie_preview(int(item["id"])) if is_member else None,
+                "is_restricted": not is_member,
                 "source": "tmdb"
             })
         return results
     except Exception:
         return []
 
+from fastapi import Header
+
 @app.post("/recommend")
-def recommend(req: RecommendRequest):
+def recommend(req: RecommendRequest, x_user_role: Optional[str] = Header("guest")):
     """
-    Smart Gateway:
-    1. Priority 1: Local ML (DataFrame + Similarity Matrix)
-    2. Priority 2: TMDB API Fallback
+    Smart Gateway with Gated Access:
+    - Detects role from X-User-Role header (default: guest)
+    - Redacts sensitive fields for guest role.
     """
     title = req.title.strip()
     n = max(1, min(req.n, 20))
+    role = x_user_role if x_user_role in ["guest", "member"] else "guest"
 
     # Try Local Path
     local_idx = None
@@ -334,16 +356,16 @@ def recommend(req: RecommendRequest):
             local_idx = movies_df[mask].index[0]
 
     if local_idx is not None:
-        recs = _get_local_recommendations(local_idx, n)
+        recs = _get_local_recommendations(local_idx, n, role=role)
         if recs:
-            return {"query": title, "path": "local", "recommendations": recs}
+            return {"query": title, "path": "local", "role": role, "recommendations": recs}
 
     # Try Fallback Path
-    recs = _get_tmdb_recommendations(title, n)
+    recs = _get_tmdb_recommendations(title, n, role=role)
     if recs:
-        return {"query": title, "path": "tmdb", "recommendations": recs}
+        return {"query": title, "path": "tmdb", "role": role, "recommendations": recs}
 
-    return {"query": title, "path": "none", "recommendations": []}
+    return {"query": title, "path": "none", "role": role, "recommendations": []}
 
 
 # Mount frontend for local development preview.
