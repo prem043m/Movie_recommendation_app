@@ -13,6 +13,7 @@ const LOCAL_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 // --- State Management ---
 let previewsEnabled = localStorage.getItem('previews_enabled') !== 'false';
 let hoverTimer = null;
+let currentHero = null;
 
 // --- DOM Elements ---
 const movieInput = document.getElementById('movie-input');
@@ -24,6 +25,9 @@ const searchPath = document.getElementById('search-path');
 const heroTitle = document.getElementById('hero-title');
 const heroDesc = document.getElementById('hero-desc');
 const heroBackdrop = document.querySelector('#hero-backdrop img');
+const playerModal = document.getElementById('player-modal');
+const playerIframe = document.getElementById('player-iframe');
+const playerClose = document.getElementById('player-close');
 const kbModal = document.getElementById('kb-modal');
 const kbHint = document.getElementById('kb-hint');
 const closeKb = document.getElementById('close-kb');
@@ -82,6 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const heroSecondary = document.getElementById('hero-secondary');
     if (heroPrimary) {
         heroPrimary.addEventListener('click', () => {
+            // Try to play a preview if available, otherwise fallback
+            if (currentHero && currentHero.preview_url) {
+                openPlayer(currentHero.preview_url);
+                return;
+            }
             if (resultsSection.style.display !== 'none') {
                 resultsSection.scrollIntoView({ behavior: 'smooth' });
             } else {
@@ -159,6 +168,30 @@ function showHealthWarning(msg) {
     setTimeout(() => healthBanner.style.display = 'none', 5000);
 }
 
+// Player modal helpers
+function openPlayer(url) {
+    if (!playerModal || !playerIframe) {
+        window.open(url, '_blank');
+        return;
+    }
+    playerIframe.src = url;
+    playerModal.classList.add('is-open');
+    playerModal.setAttribute('aria-hidden', 'false');
+}
+
+function closePlayer() {
+    if (!playerModal || !playerIframe) return;
+    playerModal.classList.remove('is-open');
+    playerModal.setAttribute('aria-hidden', 'true');
+    // stop playback by clearing src after a slight delay
+    setTimeout(() => { playerIframe.src = ''; }, 200);
+}
+
+if (playerClose) playerClose.addEventListener('click', closePlayer);
+if (playerModal) playerModal.addEventListener('click', (e) => {
+    if (e.target === playerModal) closePlayer();
+});
+
 // --- API Calls ---
 async function performSearch() {
     const title = movieInput.value.trim();
@@ -200,9 +233,57 @@ async function fetchTrending() {
         });
         const data = await recResponse.json();
         renderGrid(trendingGrid, data.recommendations);
+            // Build mosaic from the recommendations (use first 12 posters)
+            try {
+                const tiles = (data.recommendations || []).slice(0, 12);
+                buildMosaic(tiles);
+            } catch (e) {
+                console.warn('Mosaic build failed', e);
+            }
     } catch (err) {
         console.error("Failed to fetch trending:", err);
     }
+}
+
+// Build poster mosaic in the hero backdrop
+function buildMosaic(movies) {
+    const container = document.getElementById('hero-backdrop');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!movies || movies.length === 0) {
+        // keep fallback
+        const img = document.createElement('img');
+        img.className = 'mosaic-fallback';
+        img.src = 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=2070&auto=format&fit=crop';
+        container.appendChild(img);
+        return;
+    }
+
+    // Build a larger set of tiles (repeat some posters) to fill the mosaic
+    const tiles = [];
+    for (let i = 0; i < Math.max(12, movies.length); i++) {
+        tiles.push(movies[i % movies.length]);
+    }
+
+    tiles.forEach((m, idx) => {
+        const tile = document.createElement('div');
+        tile.className = 'mosaic-tile';
+        const path = (m && (m.poster_path || m.backdrop_path)) || '';
+        tile.style.backgroundImage = path ? `url(${TMDB_IMG}${path})` : `url('${LOCAL_FALLBACK}')`;
+
+        // Randomized spans for more organic collage
+        const rnd = idx % 11;
+        if (rnd === 0 || rnd === 4) tile.style.gridRow = 'span 2';
+        if (rnd === 2 || rnd === 7) tile.style.gridColumn = 'span 2';
+        if (rnd === 10) { tile.style.gridColumn = 'span 3'; tile.style.gridRow = 'span 2'; }
+
+        // slight rotation/offset for realism on larger tiles
+        if (tile.style.gridColumn && tile.style.gridColumn !== 'span 1') {
+            tile.style.transform = 'rotate(-0.6deg)';
+        }
+
+        container.appendChild(tile);
+    });
 }
 
 // --- Rendering ---
@@ -288,11 +369,11 @@ function renderGrid(grid, movies) {
 }
 
 function updateHero(movie) {
+    currentHero = movie;
     heroTitle.textContent = movie.title;
     heroDesc.textContent = movie.overview || "No overview available for this title.";
     
     if (movie.poster_path) {
-        // In a real app, we'd use a backdrop path, but poster is a good fallback
         heroBackdrop.src = `${TMDB_IMG}${movie.poster_path}`;
         heroBackdrop.style.opacity = "0.4";
     }

@@ -1,1117 +1,127 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineMatch - Movie Discovery</title>
+    <title>Lumina — Movie Discovery</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@700;800&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #9D50BB;
-            --secondary: #6E7DFF;
-            --accent: #FFD700;
-            --bg: #050505;
-            --panel: rgba(26, 26, 26, 0.7);
-            --panel-strong: rgba(26, 26, 26, 0.95);
-            --panel-soft: rgba(160, 160, 160, 0.1);
-            --line: rgba(255, 255, 255, 0.1);
-            --text: #FFFFFF;
-            --muted: #A0A0A0;
-            --accent-soft: #FFE55C;
-            --cyan: #6E7DFF;
-            --success: #4ade80;
-            --danger: #fb7185;
-            --shadow: 0 12px 30px rgba(157, 80, 187, 0.2);
-            --radius-xl: 16px;
-            --radius-lg: 12px;
-            --radius-md: 8px;
-            --content-width: 1240px;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            min-height: 100vh;
-            font-family: 'Inter', -apple-system, sans-serif;
-            color: var(--text);
-            background: linear-gradient(135deg, #050505 0%, #1A0F2E 50%, #050505 100%);
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        button,
-        input {
-            font: inherit;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .ambient-bg {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background:
-                radial-gradient(circle at 15% 15%, rgba(249, 115, 22, 0.10), transparent 28%),
-                radial-gradient(circle at 85% 70%, rgba(34, 211, 238, 0.10), transparent 25%);
-            filter: blur(60px);
-            pointer-events: none;
-        }
-
-        .page-shell {
-            width: min(var(--content-width), calc(100% - 32px));
-            margin: 0 auto;
-        }
-
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 120;
-            padding: 12px 0;
-            backdrop-filter: blur(12px);
-            background: rgba(5, 5, 5, 0.95);
-            border-bottom: 1px solid var(--line);
-        }
-
-        .topbar-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            padding: 0 4px;
-        }
-
-        .brand {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-
-        .brand-mark {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.3rem;
-            font-weight: 800;
-            letter-spacing: -0.04em;
-            color: var(--text);
-        }
-
-        .brand-subtitle {
-            font-size: 0.82rem;
-            color: var(--muted);
-        }
-
-        .topbar-nav {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        .nav-link,
-        .icon-btn,
-        .mini-pill {
-            border: 1px solid var(--line);
-            background: rgba(15, 23, 42, 0.56);
-            color: var(--muted);
-            transition: 0.25s ease;
-        }
-
-        .nav-link {
-            padding: 10px 14px;
-            border-radius: 999px;
-            font-size: 0.92rem;
-            font-weight: 600;
-        }
-
-        .nav-link:hover,
-        .nav-link:focus-visible,
-        .icon-btn:hover,
-        .mini-pill:hover {
-            color: var(--text);
-            border-color: var(--secondary);
-            background: rgba(30, 41, 59, 0.82);
-        }
-
-        .nav-link.is-active {
-            color: var(--text);
-            background: linear-gradient(135deg, rgba(110, 125, 255, 0.2), rgba(157, 80, 187, 0.15));
-            border-color: var(--secondary);
-            font-weight: 700;
-        }
-
-        .mini-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            border-radius: 999px;
-            font-size: 0.85rem;
-            font-weight: 700;
-        }
-
-        .mini-pill kbd {
-            font-family: inherit;
-            font-size: 0.76rem;
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.08);
-            padding: 3px 7px;
-            border-radius: 999px;
-        }
-
-        .icon-btn {
-            width: 44px;
-            height: 44px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-
-        .hero {
-            position: relative;
-            display: grid;
-            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-            gap: 28px;
-            align-items: stretch;
-            padding: 30px 0 22px;
-        }
-
-        .hero-panel,
-        .hero-spotlight,
-        .section-card,
-        .modal-card {
-            border: 1px solid var(--line);
-            background: var(--panel);
-            backdrop-filter: blur(18px);
-            box-shadow: var(--shadow);
-        }
-
-        .hero-panel {
-            position: relative;
-            overflow: hidden;
-            border-radius: var(--radius-xl);
-            padding: 36px;
-            min-height: 520px;
-        }
-
-        .hero-panel::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-                linear-gradient(135deg, rgba(249, 115, 22, 0.12), transparent 42%),
-                linear-gradient(180deg, rgba(15, 23, 42, 0.10), rgba(2, 6, 23, 0.18));
-            pointer-events: none;
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(110, 125, 255, 0.4);
-            background: rgba(110, 125, 255, 0.18);
-            color: #FFFFFF;
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            margin-bottom: 16px;
-        }
-
-        .hero-title {
-            position: relative;
-            font-family: 'Outfit', sans-serif;
-            font-size: clamp(2.2rem, 4vw, 3.8rem);
-            line-height: 1.1;
-            letter-spacing: -0.03em;
-            max-width: 12ch;
-            margin-bottom: 16px;
-            font-weight: 800;
-        }
-
-        .hero-description {
-            position: relative;
-            max-width: 58ch;
-            color: var(--muted);
-            font-size: 1.05rem;
-            line-height: 1.75;
-            margin-bottom: 28px;
-        }
-
-        .search-card {
-            position: relative;
-            z-index: 1;
-            border: 1px solid rgba(148, 163, 184, 0.14);
-            background: rgba(8, 15, 29, 0.74);
-            border-radius: 24px;
-            padding: 18px;
-            margin-bottom: 26px;
-        }
-
-        .search-card-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 14px;
-        }
-
-        .search-label {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text);
-        }
-
-        .search-hint {
-            font-size: 0.83rem;
-            color: var(--muted);
-        }
-
-        .search-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .search-input {
-            width: 100%;
-            min-height: 56px;
-            padding: 0 16px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text);
-            outline: none;
-            transition: 0.2s ease;
-            font-size: 0.95rem;
-        }
-
-        .search-input::placeholder {
-            color: #808080;
-        }
-
-        .search-input:focus {
-            border-color: var(--cyan);
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 3px rgba(110, 125, 255, 0.15);
-        }
-
-        .search-btn {
-            min-width: 140px;
-            min-height: 56px;
-            border: none;
-            border-radius: 12px;
-            padding: 0 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 8px 20px rgba(157, 80, 187, 0.25);
-            font-size: 0.95rem;
-        }
-
-        .search-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(157, 80, 187, 0.35);
-        }
-
-        .search-btn:disabled {
-            opacity: 0.75;
-            cursor: wait;
-        }
-
-        .quick-picks {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 14px;
-        }
-
-        .pick-chip {
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text);
-            border-radius: 999px;
-            padding: 9px 14px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .pick-chip:hover {
-            background: rgba(110, 125, 255, 0.15);
-            border-color: var(--secondary);
-            color: var(--text);
-            transform: translateY(-1px);
-        }
-
-        .pick-chip:active {
-            transform: scale(0.97);
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 26px;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            min-height: 54px;
-            padding: 0 22px;
-            border-radius: 999px;
-            border: 1px solid transparent;
-            font-weight: 800;
-            transition: all 0.25s ease;
-            cursor: pointer;
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            box-shadow: 0 8px 20px rgba(157, 80, 187, 0.25);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(157, 80, 187, 0.35);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.03);
-            border-color: var(--line);
-            color: var(--text);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(110, 125, 255, 0.12);
-            border-color: var(--secondary);
-            color: var(--text);
-        }
-
-        .hero-stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .stat-card {
-            border: 1px solid var(--line);
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 18px;
-        }
-
-        .stat-label {
-            color: var(--muted);
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 10px;
-        }
-
-        .stat-value {
-            font-size: 1.45rem;
-            font-weight: 800;
-        }
-
-        .hero-spotlight {
-            position: relative;
-            overflow: hidden;
-            border-radius: var(--radius-xl);
-            min-height: 520px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .hero-spotlight img {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.42;
-        }
-
-        .hero-spotlight::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.82) 60%, rgba(2, 6, 23, 0.98) 100%);
-        }
-
-        .spotlight-content {
-            position: relative;
-            z-index: 1;
-            padding: 34px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .spotlight-kicker {
-            color: var(--cyan);
-            font-size: 0.82rem;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .spotlight-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: clamp(1.5rem, 3vw, 2.2rem);
-            line-height: 1.2;
-            letter-spacing: -0.03em;
-            font-weight: 800;
-        }
-
-        .spotlight-description {
-            color: #cbd5e1;
-            line-height: 1.7;
-            max-width: 34ch;
-        }
-
-        .spotlight-meta {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .meta-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #FFFFFF;
-            font-size: 0.84rem;
-            font-weight: 700;
-        }
-
-        .section-card {
-            margin-top: 18px;
-            border-radius: 26px;
-            padding: 28px;
-        }
-
-        .section-card[hidden] {
-            display: none;
-        }
-
-        .section-head {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 18px;
-        }
-
-        .section-eyebrow {
-            color: var(--muted);
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 8px;
-            font-weight: 800;
-        }
-
-        .section-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.6rem;
-            letter-spacing: -0.03em;
-            font-weight: 800;
-        }
-
-        .section-subtitle {
-            color: var(--muted);
-            font-size: 0.95rem;
-            margin-top: 8px;
-        }
-
-        .section-status {
-            color: var(--cyan);
-            font-size: 0.85rem;
-            font-weight: 800;
-            border: 1px solid rgba(34, 211, 238, 0.18);
-            background: rgba(34, 211, 238, 0.08);
-            border-radius: 999px;
-            padding: 10px 14px;
-        }
-
-        .movie-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 14px;
-        }
-
-        .movie-card {
-            position: relative;
-            overflow: hidden;
-            border-radius: 22px;
-            border: 1px solid var(--line);
-            background: rgba(15, 23, 42, 0.86);
-            cursor: pointer;
-            transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
-        }
-
-        .movie-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--cyan);
-            box-shadow: 0 12px 25px rgba(110, 125, 255, 0.25);
-        }
-
-        .movie-card.is-selected {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 1px var(--accent);
-        }
-
-        .movie-card img {
-            display: block;
-            width: 100%;
-            aspect-ratio: 2 / 3;
-            object-fit: cover;
-            transition: opacity 0.3s ease, transform 0.35s ease;
-        }
-
-        .movie-card:hover img {
-            transform: scale(1.03);
-            opacity: 0.34;
-        }
-
-        .video-container {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            background: #000;
-        }
-
-        .video-container.active {
-            opacity: 1;
-        }
-
-        .video-container iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            transform: scale(1.28);
-        }
-
-        .card-badge {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            z-index: 2;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 11px;
-            border-radius: 999px;
-            background: rgba(2, 6, 23, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #F0F4FF;
-            font-size: 0.74rem;
-            font-weight: 800;
-            letter-spacing: 0.02em;
-        }
-
-        .card-info {
-            position: absolute;
-            inset: auto 0 0 0;
-            padding: 20px 18px 18px;
-            background: linear-gradient(180deg, transparent 0%, rgba(2, 6, 23, 0.60) 32%, rgba(2, 6, 23, 0.96) 100%);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .card-title {
-            font-size: 1rem;
-            font-weight: 800;
-            line-height: 1.3;
-        }
-
-        .card-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            color: #cbd5e1;
-            font-size: 0.82rem;
-        }
-
-        .card-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--cyan);
-            font-size: 0.8rem;
-            font-weight: 800;
-        }
-
-        .skeleton-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 18px;
-        }
-
-        .skeleton-card {
-            aspect-ratio: 2 / 3;
-            border-radius: 22px;
-            border: 1px solid var(--line);
-            background: linear-gradient(90deg, rgba(30, 41, 59, 0.82) 0%, rgba(51, 65, 85, 0.92) 50%, rgba(30, 41, 59, 0.82) 100%);
-            background-size: 220% 100%;
-            animation: shimmer 1.2s infinite linear;
-        }
-
-        @keyframes shimmer {
-            from { background-position: 200% 0; }
-            to { background-position: -200% 0; }
-        }
-
-        .toast,
-        .health-banner {
-            position: fixed;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 300;
-            padding: 12px 16px;
-            border-radius: 999px;
-            border: 1px solid var(--line);
-            backdrop-filter: blur(16px);
-            font-size: 0.9rem;
-            font-weight: 700;
-            box-shadow: var(--shadow);
-        }
-
-        .health-banner {
-            top: 84px;
-            background: rgba(127, 29, 29, 0.82);
-            color: #fecaca;
-            display: none;
-        }
-
-        .toast {
-            bottom: 24px;
-            background: rgba(15, 23, 42, 0.92);
-            color: var(--text);
-            display: none;
-        }
-
-        .toast.is-visible,
-        .health-banner.is-visible {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .modal {
-            position: fixed;
-            inset: 0;
-            z-index: 220;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-        }
-
-        .modal.is-open {
-            display: flex;
-        }
-
-        .modal-card {
-            width: min(900px, 100%);
-            border-radius: 16px;
-            overflow: hidden;
-            background: var(--panel-strong);
-            border: 1px solid var(--line);
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-
-        .modal-layout {
-            display: grid;
-            grid-template-columns: 320px minmax(0, 1fr);
-        }
-
-        .modal-poster img,
-        .modal-poster-fallback {
-            width: 100%;
-            height: 100%;
-            min-height: 480px;
-            object-fit: cover;
-            display: block;
-        }
-
-        .modal-poster-fallback {
-            background: linear-gradient(135deg, rgba(249, 115, 22, 0.20), rgba(34, 211, 238, 0.18));
-        }
-
-        .modal-body {
-            position: relative;
-            padding: 32px;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 42px;
-            height: 42px;
-            border: 1px solid var(--line);
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text);
-            cursor: pointer;
-        }
-
-        .modal-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.8rem;
-            letter-spacing: -0.03em;
-            margin-bottom: 12px;
-            max-width: calc(100% - 60px);
-            font-weight: 800;
-        }
-
-        .modal-meta,
-        .modal-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-
-        .modal-text {
-            color: #cbd5e1;
-            line-height: 1.75;
-            margin-bottom: 18px;
-        }
-
-        .modal-label {
-            color: var(--muted);
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            font-weight: 800;
-            margin-bottom: 10px;
-        }
-
-        .empty-state {
-            padding: 34px 20px;
-            border: 1px dashed rgba(148, 163, 184, 0.18);
-            border-radius: 20px;
-            color: var(--muted);
-            text-align: center;
-        }
-
-        footer {
-            width: min(var(--content-width), calc(100% - 32px));
-            margin: 24px auto 40px;
-            padding: 20px 6px 0;
-            color: var(--muted);
-            font-size: 0.9rem;
-            text-align: center;
-        }
-
-        @media (max-width: 1024px) {
-            .hero {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-
-            .hero-panel,
-            .hero-spotlight {
-                min-height: 400px;
-            }
-
-            .hero-stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .modal-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .modal-poster img,
-            .modal-poster-fallback {
-                min-height: 240px;
-                max-height: 280px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .topbar-inner {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 12px;
-            }
-
-            .topbar-nav {
-                justify-content: flex-start;
-                flex-wrap: wrap;
-            }
-
-            .hero {
-                grid-template-columns: 1fr;
-                gap: 16px;
-                padding: 16px 0 12px;
-            }
-
-            .hero-panel,
-            .hero-spotlight {
-                min-height: 400px;
-                padding: 24px 18px;
-            }
-
-            .hero-title {
-                font-size: 1.8rem;
-            }
-
-            .search-row {
-                grid-template-columns: 1fr;
-            }
-
-            .search-btn {
-                width: 100%;
-                min-height: 48px;
-            }
-
-            .search-input {
-                min-height: 48px;
-            }
-
-            .section-card {
-                padding: 18px 14px;
-            }
-
-            .section-head {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .movie-row,
-            .skeleton-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 12px;
-            }
-
-            .modal-body {
-                padding: 24px 18px;
-            }
-
-            .modal-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .modal-poster img,
-            .modal-poster-fallback {
-                min-height: 240px;
-                max-height: 280px;
-            }
-        }
-
-        @media (max-width: 520px) {
-            .page-shell {
-                width: min(var(--content-width), calc(100% - 20px));
-            }
-
-            .movie-row,
-            .skeleton-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 14px;
-            }
-
-            .card-badge,
-            .card-action {
-                display: none;
-            }
-        }
+        :root { --obsidian: #050505; --graphite: #1A1A1A; --amethyst: #9D50BB; --cyan: #6E7DFF; --text-primary: #FFFFFF; --text-secondary: #A0A0A0; --accent-gradient: linear-gradient(135deg, var(--amethyst), var(--cyan)); --glass: rgba(255, 255, 255, 0.05); --glass-border: rgba(255, 255, 255, 0.1); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--obsidian); color: var(--text-primary); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        h1, h2, h3 { font-family: 'Outfit', sans-serif; }
+        img, iframe { max-width: 100%; height: auto; display: block; }
+        .ambient-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 50% -20%, rgba(157,80,187,0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(110,125,255,0.1) 0%, transparent 50%); filter: blur(80px); }
+        nav { position: fixed; top: 0; width: 100%; padding: 1.5rem 4rem; display: flex; justify-content: space-between; align-items: center; z-index: 100; background: linear-gradient(to bottom, rgba(5,5,5,0.8), transparent); backdrop-filter: blur(10px); }
+        .logo { font-size: 1.8rem; font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; align-items: center; }
+        .nav-link { color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.25s ease; }
+        .nav-link:hover, .nav-link.is-active { color: var(--text-primary); border-bottom: 2px solid var(--cyan); }
+        .health-banner { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; padding: 12px 20px; background: rgba(127,29,29,0.82); border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); color: #fecaca; font-size: 0.9rem; font-weight: 700; display: none; }
+        .hero { height: 90vh; display: flex; flex-direction: column; justify-content: center; padding: 0 4rem; position: relative; overflow: hidden; }
+        .hero-content { max-width: 600px; z-index: 1; }
+        .hero-eyebrow { text-transform: uppercase; letter-spacing: 3px; font-size: 0.8rem; color: var(--cyan); margin-bottom: 1rem; font-weight: 600; }
+        .hero-title { font-size: 5rem; line-height: 1; margin-bottom: 1.5rem; letter-spacing: -2px; }
+        .hero-description { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 2.5rem; line-height: 1.6; }
+        .search-container { margin-bottom: 2rem; position: relative; max-width: 500px; }
+        .search-container input { width: 100%; padding: 1.2rem 1.5rem; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; outline: none; font-size: 1rem; backdrop-filter: blur(10px); }
+        .search-container button { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: var(--accent-gradient); border: none; padding: 0.6rem 1.5rem; border-radius: 50px; color: white; font-weight: 600; cursor: pointer; }
+        .cta-group { display: flex; gap: 1.5rem; }
+        .btn { padding: 1rem 2.5rem; border-radius: 50px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; border: none; }
+        .btn-primary { background: var(--accent-gradient); color: white; box-shadow: 0 10px 20px rgba(157,80,187,0.3); }
+        .btn-secondary { background: var(--glass); color: white; border: 1px solid var(--glass-border); }
+        .pick-chip { border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); color: var(--text-primary); border-radius: 999px; padding: 9px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .hero-backdrop { position: absolute; top: 0; right: 0; width: 65%; height: 100%; z-index: 0; mask-image: linear-gradient(to left, black 60%, transparent); -webkit-mask-image: linear-gradient(to left, black 60%, transparent); }
+        .hero-backdrop img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; filter: grayscale(20%); }
+        .section { padding: 4rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .section-title { font-size: 1.8rem; font-weight: 700; }
+        .movie-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+        .movie-card { position: relative; border-radius: 12px; overflow: hidden; background: var(--graphite); transition: all 0.4s; cursor: pointer; border: 1px solid var(--glass-border); }
+        .movie-card:hover { transform: scale(1.05) translateY(-10px); z-index: 10; border-color: var(--cyan); box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+        .movie-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+        .video-container { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; background: black; }
+        .video-container.active { opacity: 1; pointer-events: auto; }
+        .video-container iframe { width: 100%; height: 100%; border: none; }
+        .card-info { position: absolute; bottom: 0; left: 0; width: 100%; padding: 1.5rem; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); opacity: 0; transform: translateY(20px); transition: all 0.3s; }
+        .movie-card:hover .card-info { opacity: 1; transform: translateY(0); }
+        .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .card-meta { font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 1rem; }
+        .modal { position: fixed; inset: 0; z-index: 220; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); }
+        .modal-card { border-radius: 16px; overflow: hidden; background: rgba(26, 26, 26, 0.95); border: 1px solid rgba(255,255,255,0.1); }
+        .modal-close { position: absolute; top: 20px; right: 20px; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; background: rgba(255,255,255,0.04); color: white; cursor: pointer; }
+        footer { padding: 4rem; border-top: 1px solid var(--glass-border); text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 1024px) { nav { padding: 1.5rem 2rem; } .hero { padding: 0 2rem; } .section { padding: 4rem 2rem; } .hero-title { font-size: 3.5rem; } }
     </style>
 </head>
 <body>
     <div class="ambient-bg"></div>
     <div id="health-banner" class="health-banner" aria-live="polite"></div>
-    <div id="toast" class="toast" aria-live="polite"></div>
 
-    <div class="topbar">
-        <div class="page-shell topbar-inner">
-            <div class="brand">
-                <div class="brand-mark">LUMINA</div>
-                <div class="brand-subtitle">Movie discovery with instant recommendations</div>
-            </div>
-            <div class="topbar-nav">
-                <a class="nav-link is-active" href="#discover">Discover</a>
-                <a class="nav-link" href="#recommendations">Recommendations</a>
-                <a class="nav-link" href="#trending">Trending</a>
-                <button id="kb-hint" class="mini-pill" type="button">Shortcuts <kbd>/</kbd></button>
-                <div style="position: relative;">
-                    <button id="settings-btn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
-                    <div id="settings-menu" style="display:none; position:absolute; top:56px; right:0; width:220px; padding:16px; border-radius:18px; border:1px solid var(--line); background:var(--panel-strong); box-shadow:var(--shadow);">
-                        <label style="display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--text); font-size:0.92rem; font-weight:700;">
-                            Video previews
-                            <input type="checkbox" id="preview-toggle" checked>
-                        </label>
-                        <p style="margin-top:10px; color:var(--muted); font-size:0.78rem; line-height:1.5;">Hover previews stay optional for a cleaner browsing experience.</p>
-                    </div>
-                </div>
-            </div>
+    <div id="player-modal" class="modal" role="dialog" aria-hidden="true">
+        <div class="modal-card" style="width: min(1100px, 96%);">
+            <button class="modal-close" id="player-close" aria-label="Close player">✕</button>
+            <div style="position: relative; padding-top: 56.25%;"><iframe id="player-iframe" src="" frameborder="0" allow="autoplay; encrypted-media; fullscreen" style="position: absolute; inset: 0; width: 100%; height: 100%;"></iframe></div>
         </div>
     </div>
 
-    <main class="page-shell">
-        <section class="hero" id="discover">
-            <div class="hero-panel">
-                <div class="eyebrow">Smart Discovery Layer</div>
-                <h1 class="hero-title" id="hero-title">Discover your next favorite film</h1>
-                <p class="hero-description" id="hero-desc">Search any title you already love and Lumina will turn it into a tighter, faster recommendation lane with previews, ratings, and quick comparisons.</p>
-
-                <div class="search-card">
-                    <div class="search-card-head">
-                        <div class="search-label">Start with a movie you already like</div>
-                        <div class="search-hint">Press `/` to focus search</div>
-                    </div>
-                    <div class="search-row">
-                        <input
-                            class="search-input"
-                            type="text"
-                            id="movie-input"
-                            placeholder="Try Inception, Interstellar, Avatar, The Dark Knight..."
-                            autocomplete="off"
-                        >
-                        <button id="search-btn" class="search-btn" type="button">Find Recommendations</button>
-                    </div>
-                    <div class="quick-picks" id="quick-picks">
-                        <button class="pick-chip" type="button" data-title="Inception">Inception</button>
-                        <button class="pick-chip" type="button" data-title="Interstellar">Interstellar</button>
-                        <button class="pick-chip" type="button" data-title="Avatar">Avatar</button>
-                        <button class="pick-chip" type="button" data-title="The Dark Knight">The Dark Knight</button>
-                    </div>
+    <nav>
+        <div class="logo">LUMINA</div>
+        <ul class="nav-links">
+            <li><a class="nav-link is-active" href="#hero">Movies</a></li>
+            <li><a class="nav-link" href="#results-section">Recommended</a></li>
+            <li><a class="nav-link" href="#trending">Trending</a></li>
+            <li id="kb-hint" style="font-size: 0.7rem; color: var(--text-secondary); cursor: help; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 4px;">CMD + K</li>
+            <li style="position: relative;">
+                <button id="settings-btn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;">⚙️</button>
+                <div id="settings-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--graphite); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 10px; width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; cursor: pointer;"><input type="checkbox" id="preview-toggle" checked> Video Previews</label>
                 </div>
+            </li>
+        </ul>
+    </nav>
 
-                <div class="hero-actions">
-                    <button id="hero-primary" class="btn btn-primary" type="button">Explore Recommendations</button>
-                    <button id="hero-secondary" class="btn btn-secondary" type="button">Browse Trending</button>
-                </div>
-
-                <div class="hero-stats">
-                    <div class="stat-card">
-                        <div class="stat-label">Mode</div>
-                        <div class="stat-value" id="stat-mode">Instant</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Results</div>
-                        <div class="stat-value" id="stat-results">10 picks</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Preview</div>
-                        <div class="stat-value" id="stat-preview">On hover</div>
-                    </div>
-                </div>
-            </div>
-
-            <aside class="hero-spotlight">
-                <div id="hero-backdrop">
-                    <img src="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=2070&auto=format&fit=crop" alt="Featured backdrop">
-                </div>
-                <div class="spotlight-content">
-                    <div class="spotlight-kicker">Featured Spotlight</div>
-                    <h2 class="spotlight-title" id="spotlight-title">Start with a title and build a watch lane</h2>
-                    <p class="spotlight-description" id="spotlight-copy">Your selected movie will appear here with cleaner context, making the transition from search to browsing feel more like a real app experience.</p>
-                    <div class="spotlight-meta" id="spotlight-meta">
-                        <span class="meta-pill">Live TMDB fallback</span>
-                        <span class="meta-pill">Poster preview</span>
-                        <span class="meta-pill">FastAPI backend</span>
-                    </div>
-                </div>
-            </aside>
-        </section>
-
-        <section class="section-card" id="results-section" hidden>
-            <div class="section-head">
-                <div>
-                    <div class="section-eyebrow">Recommendations</div>
-                    <h2 class="section-title" id="recommendations">Your next watch lane</h2>
-                    <p class="section-subtitle" id="results-subtitle">Based on your latest search.</p>
-                </div>
-                <div class="section-status" id="search-path">Ready</div>
-            </div>
-            <div class="movie-row" id="results-grid"></div>
-        </section>
-
-        <section class="section-card" id="trending">
-            <div class="section-head">
-                <div>
-                    <div class="section-eyebrow">Browse</div>
-                    <h2 class="section-title">Trending now</h2>
-                    <p class="section-subtitle">Quick picks to help you start browsing even before you search.</p>
-                </div>
-                <div class="section-status">Fresh list</div>
-            </div>
-            <div id="trending-grid" class="movie-row"></div>
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2026 Lumina. Built with FastAPI, TMDB, and local recommendation models.</p>
-    </footer>
-
-    <div id="kb-modal" class="modal" aria-hidden="true">
-        <div class="modal-card" style="max-width:520px;">
-            <div class="modal-body">
-                <button id="close-kb" class="modal-close" type="button" aria-label="Close shortcuts">×</button>
-                <div class="section-eyebrow">Keyboard Shortcuts</div>
-                <h2 class="modal-title">Move faster</h2>
-                <div class="modal-meta">
-                    <span class="meta-pill">/ Focus search</span>
-                    <span class="meta-pill">Esc Close dialogs</span>
-                    <span class="meta-pill">Enter Search</span>
-                </div>
-                <p class="modal-text">The app is set up so search, trending browsing, and preview toggling feel predictable whether you are on desktop or mobile.</p>
-            </div>
+    <div id="kb-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(20px);">
+        <div style="background: var(--graphite); padding: 3rem; border-radius: 20px; border: 1px solid var(--glass-border); max-width: 400px; width: 90%;">
+            <h2 style="margin-bottom: 2rem;">Shortcuts</h2>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Search</span> <kbd style="background: #333; padding: 2px 6px; border-radius: 4px;">/</kbd></div>
+            <button id="close-kb" style="width: 100%; margin-top: 2rem; padding: 1rem; border-radius: 10px; background: var(--accent-gradient); border: none; color: white; cursor: pointer;">Got it</button>
         </div>
     </div>
 
-    <div id="movie-modal" class="modal" aria-hidden="true">
-        <div class="modal-card">
-            <div id="movie-modal-content"></div>
+    <header class="hero" id="hero">
+        <div class="hero-backdrop" id="hero-backdrop"><img src="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=2070&auto=format&fit=crop" alt="Hero Backdrop"></div>
+        <div class="hero-content">
+            <p class="hero-eyebrow">Now Streaming</p>
+            <h1 class="hero-title" id="hero-title">Discover Your Next Favorite Film</h1>
+            <p class="hero-description" id="hero-desc">Powered by AI and live TMDB discovery. Enter a movie you love to get instant recommendations.</p>
+            <div class="search-container"><input type="text" id="movie-input" placeholder="Type a movie title..."><button id="search-btn">Find</button></div>
+            <div class="cta-group">
+                <button class="btn btn-primary" id="hero-primary">▶ Watch Trailer</button>
+                <button class="btn btn-secondary" id="hero-secondary">ⓘ Details</button>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+                <button class="pick-chip" data-title="Inception">Inception</button>
+                <button class="pick-chip" data-title="Interstellar">Interstellar</button>
+                <button class="pick-chip" data-title="Avatar">Avatar</button>
+                <button class="pick-chip" data-title="The Dark Knight">The Dark Knight</button>
+            </div>
         </div>
-    </div>
+    </header>
 
+    <section class="section" id="results-section" style="display: none;">
+        <div class="section-header"><h2 class="section-title">Recommended For You</h2><span id="search-path"></span></div>
+        <div class="movie-row" id="results-grid"></div>
+    </section>
+
+    <section class="section" id="trending">
+        <div class="section-header"><h2 class="section-title">Trending Now</h2></div>
+        <div class="movie-row" id="trending-grid"></div>
+    </section>
+
+    <footer><p>&copy; 2026 LUMINA. Built with FastAPI & ML</p></footer>
     <script src="lumina_app.js"></script>
 </body>
 </html>
