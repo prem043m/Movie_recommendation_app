@@ -70,6 +70,7 @@
             font-weight: 800;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -1px;
         }
@@ -331,6 +332,27 @@
 </head>
 <body>
     <div class="ambient-bg"></div>
+    <div id="health-banner" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(255, 107, 107, 0.9); color: white; padding: 0.8rem 2rem; border-radius: 50px; z-index: 200; font-size: 0.9rem; font-weight: 600; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(255,107,107,0.3);"></div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(15px);">
+        <div style="background: var(--graphite); padding: 3rem; border-radius: 24px; border: 1px solid var(--glass-border); width: 100%; max-width: 400px; position: relative;">
+            <button id="close-login" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;">✕</button>
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">Welcome Back</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Sign in to unlock full cinematic data and previews.</p>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Email</label>
+                <input type="email" placeholder="you@example.com" style="width: 100%; padding: 1rem; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; outline: none;">
+            </div>
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Password</label>
+                <input type="password" placeholder="••••••••" style="width: 100%; padding: 1rem; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; outline: none;">
+            </div>
+            
+            <button id="submit-login" style="width: 100%; padding: 1rem; border-radius: 12px; background: var(--accent-gradient); border: none; color: white; font-weight: 700; cursor: pointer; transition: transform 0.2s;">Access Member Portal</button>
+        </div>
+    </div>
 
     <nav>
         <div class="logo">LUMINA</div>

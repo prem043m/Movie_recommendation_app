@@ -8,13 +8,19 @@ import ast
 import gc
 import os
 import pickle
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if present
+load_dotenv()
 from difflib import get_close_matches
 from pathlib import Path
 from typing import List, Optional
+from contextlib import asynccontextmanager
 
 import pandas as pd
 import requests
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -25,10 +31,37 @@ from sklearn.metrics.pairwise import cosine_similarity
 # App setup
 # ---------------------------------------------------------------------------
 
+movies_df: pd.DataFrame = None   # type: ignore[assignment]
+similarity = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handle startup and shutdown events.
+    Modern replacement for @app.on_event('startup').
+    """
+    global movies_df, similarity
+
+    # 1. Try precomputed pickles (opt-in)
+    p_movies = _load_pickle_safely("movies_data.pkl")
+    p_sim    = _load_pickle_safely("similarity.pkl")
+
+    if p_movies is not None and p_sim is not None:
+        movies_df  = pd.DataFrame(p_movies).reset_index(drop=True)
+        similarity = p_sim
+        print(f"[startup] Loaded {len(movies_df)} movies from pickles.")
+    else:
+        # 2. Build from CSV (always available in repo)
+        print("[startup] Building recommender from CSV files…")
+        movies_df, similarity = _build_from_csv()
+        print(f"[startup] Built recommender with {len(movies_df)} movies.")
+    yield
+
 app = FastAPI(
     title="Movie Recommender API",
     description="Content-based movie recommender powered by TMDB data.",
     version="2.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -42,9 +75,7 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
 TMDB_BASE = "https://api.themoviedb.org/3"
 TMDB_IMG  = "https://image.tmdb.org/t/p/w500"
 
-# Global recommendation state (loaded at startup)
-movies_df: pd.DataFrame = None   # type: ignore[assignment]
-similarity = None
+LOCAL_FALLBACK = """<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750' viewBox='0 0 500 750'><rect width='500' height='750' fill='#1A1A1A'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='#6E7DFF'>POSTER UNAVAILABLE</text></svg>"""
 
 
 # ---------------------------------------------------------------------------
@@ -177,30 +208,6 @@ def _load_pickle_safely(path: str):
 
 
 # ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
-
-@app.on_event("startup")
-def prepare():
-    global movies_df, similarity
-
-    # 1. Try precomputed pickles (opt-in)
-    p_movies = _load_pickle_safely("movies_data.pkl")
-    p_sim    = _load_pickle_safely("similarity.pkl")
-
-    if p_movies is not None and p_sim is not None:
-        movies_df  = pd.DataFrame(p_movies).reset_index(drop=True)
-        similarity = p_sim
-        print(f"[startup] Loaded {len(movies_df)} movies from pickles.")
-        return
-
-    # 2. Build from CSV (always available in repo)
-    print("[startup] Building recommender from CSV files…")
-    movies_df, similarity = _build_from_csv()
-    print(f"[startup] Built recommender with {len(movies_df)} movies.")
-
-
-# ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------
 
@@ -232,23 +239,37 @@ def list_movies(
 
 
 @app.get("/poster/{movie_id}")
-def get_poster(movie_id: int):
-    """Proxy TMDB poster URL so the API key is never exposed to the browser."""
+@app.get("/poster/{movie_id}")
+def get_poster_image(movie_id: int):
+    """
+    Proxy the actual image bytes from TMDB to the client.
+    If no key is provided, returns the local SVG fallback.
+    """
     if not TMDB_API_KEY:
-        raise HTTPException(status_code=503, detail="TMDB_API_KEY not configured")
+        return Response(content=LOCAL_FALLBACK, media_type="image/svg+xml")
+    
     try:
-        url = f"{TMDB_BASE}/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
-        r = requests.get(url, timeout=6)
+        # 1. Get the poster path
+        url = f"{TMDB_BASE}/movie/{movie_id}?api_key={TMDB_API_KEY}"
+        r = requests.get(url, timeout=5)
         r.raise_for_status()
-        data = r.json()
-        poster_path = data.get("poster_path")
+        poster_path = r.json().get("poster_path")
+        
         if not poster_path:
-            raise HTTPException(status_code=404, detail="No poster available")
-        return {"poster_url": f"{TMDB_IMG}{poster_path}"}
-    except HTTPException:
-        raise
+            return RedirectResponse(url=LOCAL_FALLBACK_URL) # Fallback to a placeholder
+            
+        # 2. Fetch the actual image bytes
+        img_url = f"{TMDB_IMG}{poster_path}"
+        img_res = requests.get(img_url, stream=True, timeout=10)
+        img_res.raise_for_status()
+        
+        return StreamingResponse(img_res.iter_content(chunk_size=1024), media_type=img_res.headers.get("Content-Type", "image/jpeg"))
+        
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        logger.error(f"Poster proxy failed: {exc}")
+        raise HTTPException(status_code=502, detail="Failed to proxy image")
+
+from fastapi.responses import StreamingResponse, RedirectResponse
 
 
 # ---------------------------------------------------------------------------
@@ -374,4 +395,9 @@ def recommend(req: RecommendRequest, x_user_role: Optional[str] = Header("guest"
 _frontend_dir = Path(__file__).parent.parent / "frontend"
 if _frontend_dir.exists():
     app.mount("/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+
+if __name__ == "__main__":
+    import uvicorn
+    # Use 0.0.0.0 to allow access from local network if needed
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 

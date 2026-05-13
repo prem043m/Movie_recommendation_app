@@ -8,6 +8,8 @@ const API_BASE = window.location.hostname === "localhost" || window.location.hos
 
 const TMDB_IMG = "https://image.tmdb.org/t/p/w500";
 
+const LOCAL_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' viewBox='0 0 500 750'%3E%3Crect width='500' height='750' fill='%231A1A1A'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Outfit, sans-serif' font-size='24' fill='%236E7DFF'%3EPOSTER UNAVAILABLE%3C/text%3E%3C/svg%3E";
+
 // --- State Management ---
 let currentUserRole = localStorage.getItem('user_role') || 'guest';
 let previewsEnabled = localStorage.getItem('previews_enabled') !== 'false';
@@ -15,6 +17,9 @@ let hoverTimer = null;
 
 // --- DOM Elements ---
 const authBtn = document.getElementById('auth-btn');
+const loginModal = document.getElementById('login-modal');
+const closeLogin = document.getElementById('close-login');
+const submitLogin = document.getElementById('submit-login');
 const movieInput = document.getElementById('movie-input');
 const searchBtn = document.getElementById('search-btn');
 const resultsSection = document.getElementById('results-section');
@@ -30,10 +35,18 @@ const closeKb = document.getElementById('close-kb');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsMenu = document.getElementById('settings-menu');
 const previewToggle = document.getElementById('preview-toggle');
+const healthBanner = document.getElementById('health-banner');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchTrending();
+    
+    // Global Error Monitor
+    window.addEventListener('error', (e) => {
+        if (e.target.tagName !== 'IMG') {
+            showHealthWarning("System connectivity issue detected.");
+        }
+    }, true);
     
     searchBtn.addEventListener('click', performSearch);
     movieInput.addEventListener('keypress', (e) => {
@@ -69,19 +82,44 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', () => settingsMenu.style.display = 'none');
     settingsMenu.addEventListener('click', (e) => e.stopPropagation());
 
-    // Auth Simulation
+    // Auth Logic
     updateAuthUI();
     authBtn.addEventListener('click', () => {
-        currentUserRole = (currentUserRole === 'guest') ? 'member' : 'guest';
-        localStorage.setItem('user_role', currentUserRole);
+        if (currentUserRole === 'member') {
+            // Sign Out
+            currentUserRole = 'guest';
+            localStorage.setItem('user_role', 'guest');
+            updateAuthUI();
+            performSearch();
+        } else {
+            // Open Login Modal
+            loginModal.style.display = 'flex';
+        }
+    });
+
+    closeLogin.addEventListener('click', () => loginModal.style.display = 'none');
+    
+    submitLogin.addEventListener('click', () => {
+        // Simulate successful login
+        currentUserRole = 'member';
+        localStorage.setItem('user_role', 'member');
+        loginModal.style.display = 'none';
         updateAuthUI();
-        performSearch(); // Refresh search with new permissions
+        performSearch();
+        showHealthWarning("Successfully logged into Lumina Portal.");
     });
 });
 
 function updateAuthUI() {
     authBtn.textContent = (currentUserRole === 'member') ? 'Sign Out' : 'Sign In';
     authBtn.style.borderColor = (currentUserRole === 'member') ? 'var(--cyan)' : 'var(--glass-border)';
+}
+
+function showHealthWarning(msg) {
+    if (!healthBanner) return;
+    healthBanner.textContent = msg;
+    healthBanner.style.display = 'block';
+    setTimeout(() => healthBanner.style.display = 'none', 5000);
 }
 
 // --- API Calls ---
@@ -156,16 +194,17 @@ function renderGrid(grid, movies) {
         const card = document.createElement('div');
         card.className = 'movie-card';
         
-        const posterUrl = movie.poster_path 
-            ? `${TMDB_IMG}${movie.poster_path}`
-            : `https://via.placeholder.com/500x750/1A1A1A/FFFFFF?text=${encodeURIComponent(movie.title)}`;
-
-        const blurStyle = movie.is_restricted ? 'filter: blur(4px); user-select: none;' : '';
+        const posterUrl = movie.id 
+            ? `${API_BASE}/poster/${movie.id}`
+            : LOCAL_FALLBACK;
 
         card.innerHTML = `
             ${movie.is_restricted ? '<span class="preview-tag" style="color: #FF6B6B; border-color: #FF6B6B;">RESTRICTED</span>' : ''}
             <div class="video-container"></div>
-            <img src="${posterUrl}" alt="${movie.title}" loading="lazy">
+            <img src="${posterUrl}" 
+                 alt="${movie.title}" 
+                 loading="lazy" 
+                 onerror="this.onerror=null; this.src='${LOCAL_FALLBACK}';">
             <div class="card-info">
                 <h3 class="card-title">${movie.title}</h3>
                 <div class="card-meta">
