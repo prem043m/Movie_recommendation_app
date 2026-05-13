@@ -1,119 +1,382 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CineMatch — AI Movie Recommendations</title>
-  <meta name="description" content="Discover your next favourite film with CineMatch — an AI-powered content-based movie recommender built on the TMDB dataset." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina — Instant Movie Experience</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --obsidian: #050505;
+            --graphite: #1A1A1A;
+            --amethyst: #9D50BB;
+            --cyan: #6E7DFF;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0A0;
+            --accent-gradient: linear-gradient(135deg, var(--amethyst), var(--cyan));
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--obsidian);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* --- Ambient Background --- */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 50% -20%, rgba(157, 80, 187, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(110, 125, 255, 0.1) 0%, transparent 50%);
+            filter: blur(80px);
+        }
+
+        /* --- Navigation --- */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: linear-gradient(to bottom, rgba(5,5,5,0.8), transparent);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-content {
+            max-width: 600px;
+            z-index: 1;
+        }
+
+        .hero-eyebrow {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 0.8rem;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .hero-title {
+            font-size: 5rem;
+            line-height: 1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -2px;
+        }
+
+        .hero-description {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            box-shadow: 0 10px 20px rgba(157, 80, 187, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(157, 80, 187, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--glass);
+            color: white;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Backdrop Preview --- */
+        .hero-backdrop {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 65%;
+            height: 100%;
+            z-index: 0;
+            mask-image: linear-gradient(to left, black 60%, transparent);
+            -webkit-mask-image: linear-gradient(to left, black 60%, transparent);
+        }
+
+        .hero-backdrop img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+            filter: grayscale(20%);
+        }
+
+        /* --- Movie Rows --- */
+        .section {
+            padding: 4rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .movie-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .movie-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--graphite);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+        }
+
+        .movie-card:hover {
+            transform: scale(1.05) translateY(-10px);
+            z-index: 10;
+            border-color: var(--cyan);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+
+        .movie-card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            transition: filter 0.4s ease;
+        }
+
+        .movie-card:hover img {
+            filter: brightness(0.5);
+        }
+
+        .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .movie-card:hover .card-info {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* --- Instant Preview Overlay --- */
+        .preview-tag {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--cyan);
+            border: 1px solid rgba(110, 125, 255, 0.3);
+        }
+
+        /* --- Footer --- */
+        footer {
+            padding: 4rem;
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1024px) {
+            nav { padding: 1.5rem 2rem; }
+            .hero { padding: 0 2rem; }
+            .section { padding: 4rem 2rem; }
+            .hero-title { font-size: 3.5rem; }
+            .hero-backdrop { width: 100%; mask-image: linear-gradient(to bottom, black 50%, transparent); }
+        }
+    </style>
 </head>
 <body>
+    <div class="ambient-bg"></div>
 
-  <!-- ── NAVBAR ── -->
-  <nav class="navbar" id="navbar">
-    <div class="nav-inner">
-      <a href="#" class="nav-logo" id="nav-logo-link">
-        <span class="logo-icon">🎬</span>
-        <span class="logo-text">CineMatch</span>
-      </a>
-      <div class="nav-status" id="nav-status">
-        <span class="status-dot" id="status-dot"></span>
-        <span id="status-label">Connecting…</span>
-      </div>
-    </div>
-  </nav>
+    <nav>
+        <div class="logo">LUMINA</div>
+        <ul class="nav-links">
+            <li><a href="#">Movies</a></li>
+            <li><a href="#">TV Shows</a></li>
+            <li><a href="#">New & Popular</a></li>
+            <li id="kb-hint" style="font-size: 0.7rem; color: var(--text-secondary); cursor: help; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 4px;">CMD + K for Search</li>
+        </ul>
+        <div class="search-icon">🔍</div>
+    </nav>
 
-  <!-- ── HERO ── -->
-  <header class="hero" id="hero">
-    <div class="hero-bg-grid"></div>
-    <div class="hero-glow hero-glow-1"></div>
-    <div class="hero-glow hero-glow-2"></div>
-    <div class="hero-content">
-      <p class="hero-eyebrow">AI-Powered Discovery</p>
-      <h1 class="hero-title">Find Your Next<br /><span class="hero-accent" id="typewriter"></span></h1>
-      <p class="hero-subtitle">Search from 4,800+ films. Our content-based engine finds what you'll love next.</p>
-
-      <!-- Search -->
-      <div class="search-wrap" id="search-wrap">
-        <div class="search-box" id="search-box">
-          <span class="search-icon">🔍</span>
-          <input
-            type="text"
-            id="search-input"
-            class="search-input"
-            placeholder="Search a movie title…"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="search-clear" id="search-clear" aria-label="Clear search">✕</button>
+    <!-- Keyboard Shortcuts Modal (Hidden) -->
+    <div id="kb-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(20px);">
+        <div style="background: var(--graphite); padding: 3rem; border-radius: 20px; border: 1px solid var(--glass-border); max-width: 400px; width: 90%;">
+            <h2 style="margin-bottom: 2rem;">Shortcuts</h2>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Search</span> <kbd style="background: #333; padding: 2px 6px; border-radius: 4px;">/</kbd></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Close Modals</span> <kbd style="background: #333; padding: 2px 6px; border-radius: 4px;">ESC</kbd></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Clear Search</span> <kbd style="background: #333; padding: 2px 6px; border-radius: 4px;">X</kbd></div>
+            <button id="close-kb" style="width: 100%; margin-top: 2rem; padding: 1rem; border-radius: 10px; background: var(--accent-gradient); border: none; color: white; cursor: pointer;">Got it</button>
         </div>
-        <ul class="suggestions" id="suggestions" role="listbox"></ul>
-      </div>
-
-      <!-- Cold-start notice -->
-      <div class="cold-notice" id="cold-notice">
-        <span class="cold-spinner"></span>
-        <span>Waking up the recommendation engine… this can take up to 60 s on first load.</span>
-      </div>
     </div>
-  </header>
 
-  <!-- ── MAIN ── -->
-  <main class="main" id="main">
-
-    <!-- SEED CARD -->
-    <section class="seed-section" id="seed-section" hidden>
-      <div class="container">
-        <h2 class="section-title">Selected Film</h2>
-        <div class="seed-card" id="seed-card"></div>
-      </div>
-    </section>
-
-    <!-- RECOMMENDATIONS -->
-    <section class="recs-section" id="recs-section" hidden>
-      <div class="container">
-        <h2 class="section-title">
-          You Might Also Love
-          <span class="section-sub" id="recs-count"></span>
-        </h2>
-        <div class="recs-grid" id="recs-grid"></div>
-      </div>
-    </section>
-
-    <!-- POPULAR (default view) -->
-    <section class="popular-section" id="popular-section">
-      <div class="container">
-        <h2 class="section-title">Explore the Catalogue</h2>
-        <p class="section-desc">Browse all available titles — or search above to get personalised picks.</p>
-        <div class="popular-grid" id="popular-grid">
-          <!-- skeleton cards injected by JS -->
+    <header class="hero">
+        <div class="hero-backdrop" id="hero-backdrop">
+            <img src="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=2070&auto=format&fit=crop" alt="Hero Backdrop">
         </div>
-      </div>
+        <div class="hero-content">
+            <p class="hero-eyebrow">Now Streaming</p>
+            <h1 class="hero-title" id="hero-title">Discover Your Next Favorite Film</h1>
+            <p class="hero-description" id="hero-desc">Powered by AI and live TMDB discovery. Enter a movie you love to get instant recommendations.</p>
+            
+            <!-- Dynamic Search -->
+            <div class="search-container" style="margin-bottom: 2rem; position: relative; max-width: 500px;">
+                <input type="text" id="movie-input" placeholder="Type a movie title..." 
+                    style="width: 100%; padding: 1.2rem 1.5rem; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; outline: none; font-size: 1rem; backdrop-filter: blur(10px);">
+                <button id="search-btn" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: var(--accent-gradient); border: none; padding: 0.6rem 1.5rem; border-radius: 50px; color: white; font-weight: 600; cursor: pointer;">Find</button>
+            </div>
+
+            <div class="cta-group">
+                <a href="#" class="btn btn-primary" id="hero-play">▶ Watch Trailer</a>
+                <a href="#" class="btn btn-secondary">ⓘ Details</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="section" id="results-section" style="display: none;">
+        <div class="section-header">
+            <h2 class="section-title">Recommended For You</h2>
+            <span id="search-path" style="font-size: 0.8rem; color: var(--cyan); opacity: 0.7;"></span>
+        </div>
+        <div class="movie-row" id="results-grid">
+            <!-- Results injected here -->
+        </div>
     </section>
 
-  </main>
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Trending Now</h2>
+        </div>
+        <div class="movie-row" id="trending-grid">
+            <!-- Trending movies injected here -->
+        </div>
+    </section>
 
-  <!-- ── MODAL ── -->
-  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
-    <div class="modal" id="modal">
-      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
-      <div class="modal-body" id="modal-body"></div>
-    </div>
-  </div>
+    <footer>
+        <p>&copy; 2026 LUMINA Entertainment. Built with FastAPI & ML</p>
+    </footer>
 
-  <!-- ── TOAST ── -->
-  <div class="toast" id="toast"></div>
-
-  <!-- ── FOOTER ── -->
-  <footer class="footer">
-    <div class="container">
-      <p>Built with ❤️ using <strong>FastAPI</strong> + <strong>scikit-learn</strong> · Data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
-    </div>
-  </footer>
-
-  <script src="app.js"></script>
+    <script src="lumina_app.js"></script>
 </body>
 </html>

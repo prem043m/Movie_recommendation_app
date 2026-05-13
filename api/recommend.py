@@ -251,65 +251,99 @@ def get_poster(movie_id: int):
         raise HTTPException(status_code=502, detail=str(exc))
 
 
+# ---------------------------------------------------------------------------
+# Smart Gateway Helpers
+# ---------------------------------------------------------------------------
+
+def _get_local_recommendations(idx: int, n: int) -> List[dict]:
+    """Path 1: Local ML Recommendations."""
+    try:
+        distances = similarity[idx]
+        # Handle float16 similarity if loaded
+        top = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1 : n + 1]
+        
+        results = []
+        for i, score in top:
+            row = movies_df.iloc[i]
+            results.append({
+                "id": int(row["movie_id"]) if pd.notna(row.get("movie_id")) else 0,
+                "title": str(row["title"]),
+                "overview": str(row.get("overview", "")),
+                "poster_path": None, # Will be fetched by client or proxy
+                "vote_average": float(row.get("vote_average", 0.0)),
+                "release_date": str(row.get("release_date", "")),
+                "source": "local"
+            })
+        return results
+    except Exception:
+        return []
+
+def _get_tmdb_recommendations(title: str, n: int) -> List[dict]:
+    """Path 2: TMDB API Fallback."""
+    if not TMDB_API_KEY:
+        return []
+        
+    try:
+        # 1. Search for movie ID
+        search_url = f"{TMDB_BASE}/search/movie?api_key={TMDB_API_KEY}&query={title}"
+        r = requests.get(search_url, timeout=5)
+        r.raise_for_status()
+        search_data = r.json()
+        
+        if not search_data.get("results"):
+            return []
+            
+        tmdb_id = search_data["results"][0]["id"]
+        
+        # 2. Get recommendations
+        rec_url = f"{TMDB_BASE}/movie/{tmdb_id}/recommendations?api_key={TMDB_API_KEY}"
+        r = requests.get(rec_url, timeout=5)
+        r.raise_for_status()
+        rec_data = r.json()
+        
+        results = []
+        for item in rec_data.get("results", [])[:n]:
+            results.append({
+                "id": int(item["id"]),
+                "title": str(item["title"]),
+                "overview": str(item.get("overview", "")),
+                "poster_path": item.get("poster_path"),
+                "vote_average": float(item.get("vote_average", 0.0)),
+                "release_date": str(item.get("release_date", "")),
+                "source": "tmdb"
+            })
+        return results
+    except Exception:
+        return []
+
 @app.post("/recommend")
 def recommend(req: RecommendRequest):
-    """Return up to `n` content-based recommendations for the given title."""
+    """
+    Smart Gateway:
+    1. Priority 1: Local ML (DataFrame + Similarity Matrix)
+    2. Priority 2: TMDB API Fallback
+    """
     title = req.title.strip()
-    n     = max(1, min(req.n, 20))
+    n = max(1, min(req.n, 20))
 
-    # Exact match first, then case-insensitive
-    mask = movies_df["title"] == title
-    if not mask.any():
+    # Try Local Path
+    local_idx = None
+    if movies_df is not None:
         mask = movies_df["title"].str.lower() == title.lower()
-    if not mask.any():
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
+        if mask.any():
+            local_idx = movies_df[mask].index[0]
 
-    idx       = movies_df[mask].index[0]
-    distances = similarity[idx]
-    top       = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1: n + 1]
+    if local_idx is not None:
+        recs = _get_local_recommendations(local_idx, n)
+        if recs:
+            return {"query": title, "path": "local", "recommendations": recs}
 
-    results = []
-    for i, score in top:
-        row = movies_df.iloc[i]
-        genres = row["genres"] if isinstance(row["genres"], list) else []
-        cast   = row["cast"]   if isinstance(row["cast"],   list) else []
-        results.append({
-            "movie_id":          int(row["movie_id"]) if pd.notna(row.get("movie_id")) else None,
-            "title":             row["title"],
-            "overview":          row["overview"] if isinstance(row["overview"], str) else "",
-            "genres":            genres,
-            "cast":              cast[:3],
-            "director":          row["crew"] if isinstance(row["crew"], str) else "",
-            "vote_average":      float(row["vote_average"]) if pd.notna(row.get("vote_average")) else 0.0,
-            "popularity":        float(row["popularity"])   if pd.notna(row.get("popularity"))   else 0.0,
-            "release_date":      str(row.get("release_date", "")) or "",
-            "runtime":           int(row["runtime"]) if pd.notna(row.get("runtime")) else None,
-            "original_language": str(row.get("original_language", "")) or "",
-            "similarity_score":  round(float(score), 4),
-        })
+    # Try Fallback Path
+    recs = _get_tmdb_recommendations(title, n)
+    if recs:
+        return {"query": title, "path": "tmdb", "recommendations": recs}
 
-    # Seed movie info
-    seed = movies_df.iloc[idx]
-    seed_genres = seed["genres"] if isinstance(seed["genres"], list) else []
-    seed_cast   = seed["cast"]   if isinstance(seed["cast"],   list) else []
-
-    return {
-        "query": title,
-        "seed": {
-            "movie_id":          int(seed["movie_id"]) if pd.notna(seed.get("movie_id")) else None,
-            "title":             seed["title"],
-            "overview":          seed["overview"] if isinstance(seed["overview"], str) else "",
-            "genres":            seed_genres,
-            "cast":              seed_cast[:3],
-            "director":          seed["crew"] if isinstance(seed["crew"], str) else "",
-            "vote_average":      float(seed["vote_average"]) if pd.notna(seed.get("vote_average")) else 0.0,
-            "popularity":        float(seed["popularity"])   if pd.notna(seed.get("popularity"))   else 0.0,
-            "release_date":      str(seed.get("release_date", "")) or "",
-            "runtime":           int(seed["runtime"]) if pd.notna(seed.get("runtime")) else None,
-            "original_language": str(seed.get("original_language", "")) or "",
-        },
-        "results": results,
-    }
+    return {"query": title, "path": "none", "recommendations": []}
 
 
 # Mount frontend for local development preview.
