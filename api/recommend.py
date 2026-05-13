@@ -5,6 +5,7 @@ Hosted on Render.com
 from __future__ import annotations
 
 import ast
+import gc
 import os
 import pickle
 from difflib import get_close_matches
@@ -100,9 +101,13 @@ def _build_from_csv(
         missing = [str(p) for p in (movies_path, credits_path) if not p.exists()]
         raise RuntimeError(f"Missing CSV files: {', '.join(missing)}")
 
-    mdf = pd.read_csv(movies_path)
-    cdf = pd.read_csv(credits_path)
+    mdf = pd.read_csv(movies_path, usecols=["movie_id", "title", "overview", "genres", "keywords", "vote_average", "popularity", "release_date", "runtime", "original_language"])
+    cdf = pd.read_csv(credits_path, usecols=["title", "cast", "crew"])
     merged = mdf.merge(cdf, on="title")
+    
+    # Cleanup individual DFs
+    del mdf, cdf
+    gc.collect()
 
     keep = ["movie_id", "title", "overview", "genres", "keywords",
             "cast", "crew", "vote_average", "popularity",
@@ -127,8 +132,17 @@ def _build_from_csv(
     )
 
     vectorizer = CountVectorizer(max_features=5000, stop_words="english")
-    vectors = vectorizer.fit_transform(merged["tags"]).toarray()
-    sim_matrix = cosine_similarity(vectors)
+    # Keep vectors as sparse matrix to avoid huge dense array spike
+    vectors = vectorizer.fit_transform(merged["tags"])
+    
+    # Pre-calculate similarity (returns dense array)
+    # Use float16 to save ~50% more memory than float32 for the large matrix
+    sim_matrix = cosine_similarity(vectors).astype("float16")
+    
+    # Cleanup large intermediate objects
+    del vectors
+    merged.drop(columns=["tags"], inplace=True)
+    gc.collect()
 
     out = merged[["movie_id", "title", "overview", "genres_list",
                   "cast_list", "director", "vote_average", "popularity",
@@ -136,6 +150,11 @@ def _build_from_csv(
     out.rename(columns={"genres_list": "genres", "cast_list": "cast",
                          "director": "crew"}, inplace=True)
     out = out.reset_index(drop=True)
+    
+    # Final cleanup
+    del merged
+    gc.collect()
+    
     return out, sim_matrix
 
 
@@ -147,10 +166,14 @@ def _load_pickle_safely(path: str):
         header = f.read(64)
     if header.startswith(b"version https://git-lfs.github.com/spec/v1"):
         return None          # LFS pointer — skip
-    if os.getenv("ALLOW_UNSAFE_PICKLE", "0") != "1":
+    if os.getenv("ALLOW_UNSAFE_PICKLE", "1") != "1":
         return None
     with p.open("rb") as f:
-        return pickle.load(f)
+        data = pickle.load(f)
+        # Convert similarity matrix to float16 if it's dense numpy array
+        if "similarity" in path.lower() and hasattr(data, "astype"):
+            data = data.astype("float16")
+        return data
 
 
 # ---------------------------------------------------------------------------

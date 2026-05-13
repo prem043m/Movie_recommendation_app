@@ -9,3 +9,7 @@ services:
     envVars:
       - key: TMDB_API_KEY
         sync: false          # Set this manually in the Render dashboard
+      - key: WEB_CONCURRENCY
+        value: 1             # Force 1 worker to save RAM
+      - key: ALLOW_UNSAFE_PICKLE
+        value: 1             # Allow loading precomputed models for efficiency
