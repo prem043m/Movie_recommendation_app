@@ -1,4 +1,4 @@
-name: CI
+name: Backend CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,11 +19,17 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: api/requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r api/requirements.txt
 
-      - name: Verify Python syntax
-        run: python -m py_compile app.py
+      - name: Verify API syntax
+        run: python -m py_compile api/recommend.py
+
+      - name: Verify data files
+        run: |
+          test -f tmdb_5000_movies.csv
+          test -f tmdb_5000_credits.csv
