@@ -10,38 +10,38 @@
 const _isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const API_BASE = window.API_BASE || (_isLocal
   ? "http://127.0.0.1:8000"
-  : "https://movie-recommender-api.onrender.com");
+  : "https://movie-recommendation-app-78qp.onrender.com");
 
-const COLD_START_MS     = 60_000;   // Render free tier can take ~60 s
-const DEBOUNCE_MS       = 260;
+const COLD_START_MS = 60_000;   // Render free tier can take ~60 s
+const DEBOUNCE_MS = 260;
 const SUGGESTIONS_LIMIT = 12;
-const POPULAR_COUNT     = 30;       // titles shown in browse grid
+const POPULAR_COUNT = 30;       // titles shown in browse grid
 
 // ── State ────────────────────────────────────────────────────
-let allTitles   = [];     // full title list from /movies
+let allTitles = [];     // full title list from /movies
 let selectedMovie = null; // { title, seed, ... }
 let debounceTimer = null;
 
 // ── DOM refs ─────────────────────────────────────────────────
-const $searchInput   = document.getElementById("search-input");
-const $searchClear   = document.getElementById("search-clear");
-const $suggestions   = document.getElementById("suggestions");
-const $coldNotice    = document.getElementById("cold-notice");
-const $statusDot     = document.getElementById("status-dot");
-const $statusLabel   = document.getElementById("status-label");
-const $navbar        = document.getElementById("navbar");
-const $seedSection   = document.getElementById("seed-section");
-const $seedCard      = document.getElementById("seed-card");
-const $recsSection   = document.getElementById("recs-section");
-const $recsGrid      = document.getElementById("recs-grid");
-const $recsCount     = document.getElementById("recs-count");
-const $popularSection= document.getElementById("popular-section");
-const $popularGrid   = document.getElementById("popular-grid");
-const $modalOverlay  = document.getElementById("modal-overlay");
-const $modalBody     = document.getElementById("modal-body");
-const $modalClose    = document.getElementById("modal-close");
-const $toast         = document.getElementById("toast");
-const $typewriter    = document.getElementById("typewriter");
+const $searchInput = document.getElementById("search-input");
+const $searchClear = document.getElementById("search-clear");
+const $suggestions = document.getElementById("suggestions");
+const $coldNotice = document.getElementById("cold-notice");
+const $statusDot = document.getElementById("status-dot");
+const $statusLabel = document.getElementById("status-label");
+const $navbar = document.getElementById("navbar");
+const $seedSection = document.getElementById("seed-section");
+const $seedCard = document.getElementById("seed-card");
+const $recsSection = document.getElementById("recs-section");
+const $recsGrid = document.getElementById("recs-grid");
+const $recsCount = document.getElementById("recs-count");
+const $popularSection = document.getElementById("popular-section");
+const $popularGrid = document.getElementById("popular-grid");
+const $modalOverlay = document.getElementById("modal-overlay");
+const $modalBody = document.getElementById("modal-body");
+const $modalClose = document.getElementById("modal-close");
+const $toast = document.getElementById("toast");
+const $typewriter = document.getElementById("typewriter");
 
 // ── Typewriter ────────────────────────────────────────────────
 const phrases = ["Favourite Film", "Next Adventure", "Cinematic Escape", "Hidden Gem"];
@@ -76,7 +76,7 @@ window.addEventListener("scroll", () => {
 function setStatus(state) {
   $statusDot.className = "status-dot " + state;
   if (state === "loading") $statusLabel.textContent = "Loading…";
-  if (state === "online")  $statusLabel.textContent = "API online";
+  if (state === "online") $statusLabel.textContent = "API online";
   if (state === "offline") $statusLabel.textContent = "API offline";
 }
 
@@ -243,12 +243,12 @@ async function selectMovieByTitle(title) {
 
 // ── Seed card ─────────────────────────────────────────────────
 function renderSeedCard(seed) {
-  const year      = seed.release_date ? seed.release_date.slice(0, 4) : "—";
-  const genres    = Array.isArray(seed.genres) ? seed.genres : [];
-  const cast      = Array.isArray(seed.cast)   ? seed.cast   : [];
-  const runtime   = seed.runtime ? `${seed.runtime} min` : "—";
-  const lang      = seed.original_language ? seed.original_language.toUpperCase() : "—";
-  const rating    = seed.vote_average ? seed.vote_average.toFixed(1) : "—";
+  const year = seed.release_date ? seed.release_date.slice(0, 4) : "—";
+  const genres = Array.isArray(seed.genres) ? seed.genres : [];
+  const cast = Array.isArray(seed.cast) ? seed.cast : [];
+  const runtime = seed.runtime ? `${seed.runtime} min` : "—";
+  const lang = seed.original_language ? seed.original_language.toUpperCase() : "—";
+  const rating = seed.vote_average ? seed.vote_average.toFixed(1) : "—";
 
   $seedCard.innerHTML = `
     <div id="seed-poster-wrap">
@@ -308,8 +308,8 @@ function renderRecsGrid(results) {
 }
 
 function createMovieCard(movie, idx) {
-  const year   = movie.release_date ? movie.release_date.slice(0, 4) : "";
-  const rating = movie.vote_average ? movie.vote_average.toFixed(1)  : "—";
+  const year = movie.release_date ? movie.release_date.slice(0, 4) : "";
+  const rating = movie.vote_average ? movie.vote_average.toFixed(1) : "—";
   const cardId = `mc-${idx}-${slugify(movie.title)}`;
 
   const card = document.createElement("div");
@@ -359,12 +359,12 @@ async function fetchAndSetPoster(movieId, wrapId, imgId) {
 
 // ── Modal ─────────────────────────────────────────────────────
 function openModal(movie) {
-  const year    = movie.release_date ? movie.release_date.slice(0, 4) : "";
-  const genres  = Array.isArray(movie.genres) ? movie.genres : [];
-  const cast    = Array.isArray(movie.cast)   ? movie.cast   : [];
-  const rating  = movie.vote_average ? `⭐ ${movie.vote_average.toFixed(1)}/10` : "";
+  const year = movie.release_date ? movie.release_date.slice(0, 4) : "";
+  const genres = Array.isArray(movie.genres) ? movie.genres : [];
+  const cast = Array.isArray(movie.cast) ? movie.cast : [];
+  const rating = movie.vote_average ? `⭐ ${movie.vote_average.toFixed(1)}/10` : "";
   const runtime = movie.runtime ? `${movie.runtime} min` : "";
-  const lang    = movie.original_language ? movie.original_language.toUpperCase() : "";
+  const lang = movie.original_language ? movie.original_language.toUpperCase() : "";
 
   $modalBody.innerHTML = `
     <div id="modal-poster-wrap">
@@ -372,10 +372,10 @@ function openModal(movie) {
     </div>
     <h2 class="modal-title" id="modal-title">${escHtml(movie.title)}</h2>
     <div class="modal-meta">
-      ${rating   ? `<span>${rating}</span>`   : ""}
-      ${year     ? `<span>📅 ${year}</span>`  : ""}
-      ${runtime  ? `<span>⏱ ${runtime}</span>`: ""}
-      ${lang     ? `<span>🌍 ${lang}</span>`  : ""}
+      ${rating ? `<span>${rating}</span>` : ""}
+      ${year ? `<span>📅 ${year}</span>` : ""}
+      ${runtime ? `<span>⏱ ${runtime}</span>` : ""}
+      ${lang ? `<span>🌍 ${lang}</span>` : ""}
       ${movie.director ? `<span>🎬 ${escHtml(movie.director)}</span>` : ""}
     </div>
     ${movie.overview ? `<p class="modal-overview">${escHtml(movie.overview)}</p>` : ""}
