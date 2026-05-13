@@ -20,12 +20,20 @@ from contextlib import asynccontextmanager
 
 import pandas as pd
 import requests
-from fastapi import FastAPI, HTTPException, Query, Header, Response
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+API_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = API_DIR.parent
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -125,8 +133,8 @@ def _build_from_csv(
     credits_csv: str = "tmdb_5000_credits.csv",
 ) -> tuple[pd.DataFrame, object]:
     """Build similarity matrix from raw TMDB CSV files."""
-    movies_path = Path(movies_csv)
-    credits_path = Path(credits_csv)
+    movies_path = _resolve_data_path(movies_csv)
+    credits_path = _resolve_data_path(credits_csv)
 
     if not movies_path.exists() or not credits_path.exists():
         missing = [str(p) for p in (movies_path, credits_path) if not p.exists()]
@@ -190,7 +198,7 @@ def _build_from_csv(
 
 
 def _load_pickle_safely(path: str):
-    p = Path(path)
+    p = _resolve_data_path(path)
     if not p.exists():
         return None
     with p.open("rb") as f:
@@ -205,6 +213,28 @@ def _load_pickle_safely(path: str):
         if "similarity" in path.lower() and hasattr(data, "astype"):
             data = data.astype("float16")
         return data
+
+
+def _resolve_data_path(path: str | Path) -> Path:
+    """
+    Resolve data assets relative to the app, so startup works from either the
+    repo root or the `api` directory.
+    """
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+
+    search_roots = [
+        Path.cwd(),
+        API_DIR,
+        PROJECT_ROOT,
+    ]
+    for root in search_roots:
+        resolved = root / candidate
+        if resolved.exists():
+            return resolved
+
+    return PROJECT_ROOT / candidate
 
 
 # ---------------------------------------------------------------------------
@@ -269,8 +299,6 @@ def get_poster_image(movie_id: int):
         logger.error(f"Poster proxy failed: {exc}")
         raise HTTPException(status_code=502, detail="Failed to proxy image")
 
-from fastapi.responses import StreamingResponse, RedirectResponse
-
 
 # ---------------------------------------------------------------------------
 # Smart Gateway Helpers
@@ -292,7 +320,7 @@ def _get_movie_preview(tmdb_id: int) -> Optional[str]:
     except Exception:
         return None
 
-def _get_local_recommendations(idx: int, n: int, role: str = "guest") -> List[dict]:
+def _get_local_recommendations(idx: int, n: int) -> List[dict]:
     """Path 1: Local ML Recommendations."""
     try:
         distances = similarity[idx]
@@ -301,24 +329,21 @@ def _get_local_recommendations(idx: int, n: int, role: str = "guest") -> List[di
         results = []
         for i, score in top:
             row = movies_df.iloc[i]
-            is_member = (role == "member")
-            
             results.append({
                 "id": int(row["movie_id"]) if pd.notna(row.get("movie_id")) else 0,
                 "title": str(row["title"]),
                 "year": str(row.get("release_date", ""))[:4],
                 "poster_path": None,
-                "overview": str(row.get("overview", "")) if is_member else "Sign in to view summary",
-                "vote_average": float(row.get("vote_average", 0.0)) if is_member else 0.0,
-                "preview_url": _get_movie_preview(int(row["movie_id"])) if is_member else None,
-                "is_restricted": not is_member,
+                "overview": str(row.get("overview", "")),
+                "vote_average": float(row.get("vote_average", 0.0)),
+                "preview_url": _get_movie_preview(int(row["movie_id"])),
                 "source": "local"
             })
         return results
     except Exception:
         return []
 
-def _get_tmdb_recommendations(title: str, n: int, role: str = "guest") -> List[dict]:
+def _get_tmdb_recommendations(title: str, n: int) -> List[dict]:
     """Path 2: TMDB API Fallback."""
     if not TMDB_API_KEY:
         return []
@@ -339,35 +364,26 @@ def _get_tmdb_recommendations(title: str, n: int, role: str = "guest") -> List[d
         rec_data = r.json()
         
         results = []
-        is_member = (role == "member")
         for item in rec_data.get("results", [])[:n]:
             results.append({
                 "id": int(item["id"]),
                 "title": str(item["title"]),
                 "year": str(item.get("release_date", ""))[:4],
                 "poster_path": item.get("poster_path"),
-                "overview": str(item.get("overview", "")) if is_member else "Sign in to view summary",
-                "vote_average": float(item.get("vote_average", 0.0)) if is_member else 0.0,
-                "preview_url": _get_movie_preview(int(item["id"])) if is_member else None,
-                "is_restricted": not is_member,
+                "overview": str(item.get("overview", "")),
+                "vote_average": float(item.get("vote_average", 0.0)),
+                "preview_url": _get_movie_preview(int(item["id"])),
                 "source": "tmdb"
             })
         return results
     except Exception:
         return []
 
-from fastapi import Header
-
 @app.post("/recommend")
-def recommend(req: RecommendRequest, x_user_role: Optional[str] = Header("guest")):
-    """
-    Smart Gateway with Gated Access:
-    - Detects role from X-User-Role header (default: guest)
-    - Redacts sensitive fields for guest role.
-    """
+def recommend(req: RecommendRequest):
+    """Return recommendations with full metadata for every user."""
     title = req.title.strip()
     n = max(1, min(req.n, 20))
-    role = x_user_role if x_user_role in ["guest", "member"] else "guest"
 
     # Try Local Path
     local_idx = None
@@ -377,16 +393,16 @@ def recommend(req: RecommendRequest, x_user_role: Optional[str] = Header("guest"
             local_idx = movies_df[mask].index[0]
 
     if local_idx is not None:
-        recs = _get_local_recommendations(local_idx, n, role=role)
+        recs = _get_local_recommendations(local_idx, n)
         if recs:
-            return {"query": title, "path": "local", "role": role, "recommendations": recs}
+            return {"query": title, "path": "local", "recommendations": recs}
 
     # Try Fallback Path
-    recs = _get_tmdb_recommendations(title, n, role=role)
+    recs = _get_tmdb_recommendations(title, n)
     if recs:
-        return {"query": title, "path": "tmdb", "role": role, "recommendations": recs}
+        return {"query": title, "path": "tmdb", "recommendations": recs}
 
-    return {"query": title, "path": "none", "role": role, "recommendations": []}
+    return {"query": title, "path": "none", "recommendations": []}
 
 
 # Mount frontend for local development preview.
@@ -400,4 +416,3 @@ if __name__ == "__main__":
     import uvicorn
     # Use 0.0.0.0 to allow access from local network if needed
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

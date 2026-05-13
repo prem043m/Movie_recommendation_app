@@ -9,6 +9,27 @@ Content-based movie recommender split into two independently hosted services:
 
 ---
 
+## ✨ Latest Updates
+
+🎉 **Enhanced UI with New Features:**
+- 👤 User authentication & profiles
+- ❤️ Favorites/Watchlist system
+- 📤 Share recommendations with friends
+- 🎨 Modern glassmorphism design
+- 📱 Improved mobile responsiveness
+- ⚡ Better performance & animations
+
+📖 **See [FEATURES.md](FEATURES.md) for complete details**
+
+**To use enhanced versions:**
+```bash
+# Rename the enhanced files to use them
+mv frontend/index-enhanced.html frontend/index.html
+mv frontend/app-enhanced.js frontend/app.js
+```
+
+---
+
 ## Architecture
 
 ```
@@ -28,12 +49,15 @@ Movie_recommendation_app/
 │   ├── recommend.py        ← FastAPI app (Render)
 │   └── requirements.txt    ← Backend deps
 ├── frontend/
-│   ├── index.html          ← Single-page app (Vercel)
+│   ├── index.html          ← Main single-page app (Vercel)
+│   ├── index-enhanced.html ← ✨ NEW - with auth & favorites
+│   ├── app.js              ← Original app logic
+│   ├── app-enhanced.js     ← ✨ NEW - with all features
 │   ├── style.css
-│   ├── app.js
 │   └── vercel.json
 ├── tmdb_5000_movies.csv    ← Source data (required by backend)
 ├── tmdb_5000_credits.csv   ← Source data (required by backend)
+├── FEATURES.md             ← ✨ NEW - feature documentation
 ├── render.yaml             ← Render deployment blueprint
 └── requirements.txt        ← Legacy Streamlit deps (not used for deploy)
 ```

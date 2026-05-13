@@ -11,15 +11,10 @@ const TMDB_IMG = "https://image.tmdb.org/t/p/w500";
 const LOCAL_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' viewBox='0 0 500 750'%3E%3Crect width='500' height='750' fill='%231A1A1A'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Outfit, sans-serif' font-size='24' fill='%236E7DFF'%3EPOSTER UNAVAILABLE%3C/text%3E%3C/svg%3E";
 
 // --- State Management ---
-let currentUserRole = localStorage.getItem('user_role') || 'guest';
 let previewsEnabled = localStorage.getItem('previews_enabled') !== 'false';
 let hoverTimer = null;
 
 // --- DOM Elements ---
-const authBtn = document.getElementById('auth-btn');
-const loginModal = document.getElementById('login-modal');
-const closeLogin = document.getElementById('close-login');
-const submitLogin = document.getElementById('submit-login');
 const movieInput = document.getElementById('movie-input');
 const searchBtn = document.getElementById('search-btn');
 const resultsSection = document.getElementById('results-section');
@@ -82,38 +77,80 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', () => settingsMenu.style.display = 'none');
     settingsMenu.addEventListener('click', (e) => e.stopPropagation());
 
-    // Auth Logic
-    updateAuthUI();
-    authBtn.addEventListener('click', () => {
-        if (currentUserRole === 'member') {
-            // Sign Out
-            currentUserRole = 'guest';
-            localStorage.setItem('user_role', 'guest');
-            updateAuthUI();
-            performSearch();
-        } else {
-            // Open Login Modal
-            loginModal.style.display = 'flex';
-        }
+    // --- Hero Button Handlers ---
+    const heroPrimary = document.getElementById('hero-primary');
+    const heroSecondary = document.getElementById('hero-secondary');
+    if (heroPrimary) {
+        heroPrimary.addEventListener('click', () => {
+            if (resultsSection.style.display !== 'none') {
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                movieInput.focus();
+            }
+        });
+    }
+    if (heroSecondary) {
+        heroSecondary.addEventListener('click', () => {
+            const trendingSection = document.getElementById('trending');
+            if (trendingSection) {
+                trendingSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    }
+
+    // --- Quick Picks Handler ---
+    const quickPicks = document.querySelectorAll('.pick-chip');
+    quickPicks.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const title = chip.getAttribute('data-title');
+            if (title) {
+                movieInput.value = title;
+                performSearch();
+            }
+        });
     });
 
-    closeLogin.addEventListener('click', () => loginModal.style.display = 'none');
-    
-    submitLogin.addEventListener('click', () => {
-        // Simulate successful login
-        currentUserRole = 'member';
-        localStorage.setItem('user_role', 'member');
-        loginModal.style.display = 'none';
-        updateAuthUI();
-        performSearch();
-        showHealthWarning("Successfully logged into Lumina Portal.");
+    // --- Navigation Links ---
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            const href = link.getAttribute('href');
+            if (href.startsWith('#')) {
+                e.preventDefault();
+                const section = document.querySelector(href);
+                if (section) {
+                    // Remove active state from all links
+                    navLinks.forEach(l => l.classList.remove('is-active'));
+                    // Add active state to clicked link
+                    link.classList.add('is-active');
+                    // Scroll to section
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
     });
+
+    // --- Update Active Nav Link on Scroll ---
+    window.addEventListener('scroll', () => {
+        const sections = document.querySelectorAll('section[id]');
+        let current = '';
+        
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            if (pageYOffset >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navLinks.forEach(link => {
+            link.classList.remove('is-active');
+            if (link.getAttribute('href') === '#' + current) {
+                link.classList.add('is-active');
+            }
+        });
+    });
+
 });
-
-function updateAuthUI() {
-    authBtn.textContent = (currentUserRole === 'member') ? 'Sign Out' : 'Sign In';
-    authBtn.style.borderColor = (currentUserRole === 'member') ? 'var(--cyan)' : 'var(--glass-border)';
-}
 
 function showHealthWarning(msg) {
     if (!healthBanner) return;
@@ -133,10 +170,7 @@ async function performSearch() {
     try {
         const response = await fetch(`${API_BASE}/recommend`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-User-Role': currentUserRole
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, n: 10 })
         });
         
@@ -199,7 +233,6 @@ function renderGrid(grid, movies) {
             : LOCAL_FALLBACK;
 
         card.innerHTML = `
-            ${movie.is_restricted ? '<span class="preview-tag" style="color: #FF6B6B; border-color: #FF6B6B;">RESTRICTED</span>' : ''}
             <div class="video-container"></div>
             <img src="${posterUrl}" 
                  alt="${movie.title}" 
@@ -216,7 +249,7 @@ function renderGrid(grid, movies) {
         
         // --- Hover Logic (Milestone 2 & 3) ---
         card.onmouseenter = () => {
-            if (!movie.preview_url || movie.is_restricted || !previewsEnabled) return;
+            if (!movie.preview_url || !previewsEnabled) return;
             
             // Intersection Check: only preview if mostly visible
             const observer = new IntersectionObserver((entries) => {
@@ -256,12 +289,7 @@ function renderGrid(grid, movies) {
 
 function updateHero(movie) {
     heroTitle.textContent = movie.title;
-    
-    if (movie.is_restricted) {
-        heroDesc.innerHTML = `<span style="color: #FF6B6B; font-weight: 600;">[Member Only Content]</span><br><span style="filter: blur(5px); opacity: 0.5;">${movie.overview}</span>`;
-    } else {
-        heroDesc.textContent = movie.overview || "No overview available for this title.";
-    }
+    heroDesc.textContent = movie.overview || "No overview available for this title.";
     
     if (movie.poster_path) {
         // In a real app, we'd use a backdrop path, but poster is a good fallback
