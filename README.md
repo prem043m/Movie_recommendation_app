@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # Movie Recommendation App
 
@@ -58,3 +59,6 @@ TMDB_API_KEY = "your_tmdb_api_key_here"
 - `similarity.pkl`: similarity matrix
 - `.env.example`: local environment template
 - `.streamlit/secrets.toml.example`: Streamlit secrets template
+=======
+glow
+>>>>>>> fd27852 ( risk managed)

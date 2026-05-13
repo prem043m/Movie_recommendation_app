@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import streamlit as st
 import pandas as pd
 import pickle
@@ -78,6 +79,60 @@ def render_poster(poster_url):
         st.image(poster_url, use_container_width=True)
     else:
         st.caption("Poster unavailable")
+=======
+import ast
+import os
+import pickle
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
+def load_pickle_file(file_path):
+    """Load a pickle file and provide clear guidance for common setup issues."""
+    path = Path(file_path)
+
+    if not path.exists():
+        raise RuntimeError(
+            f"Missing required file: {file_path}. "
+            "Make sure project assets are present in the repository."
+        )
+
+    # Git LFS pointer files are plain text and start with this marker.
+    with path.open('rb') as f:
+        header = f.read(64)
+
+    if header.startswith(b"version https://git-lfs.github.com/spec/v1"):
+        raise RuntimeError(
+            f"{file_path} is a Git LFS pointer, not the actual data file.\n"
+            "Install and fetch LFS objects, then re-run the app:\n"
+            "  git lfs install\n"
+            "  git lfs pull"
+        )
+
+    # Avoid unpickling by default. Unpickling can execute arbitrary code
+    # if the pickle file is untrusted. Require an explicit opt-in via
+    # the ALLOW_UNSAFE_PICKLE environment variable to proceed.
+    if os.environ.get('ALLOW_UNSAFE_PICKLE', '0') != '1':
+        raise RuntimeError(
+            f"Refusing to unpickle {file_path} by default.\n"
+            "If you trust this file and understand the risks, set the"
+            " environment variable ALLOW_UNSAFE_PICKLE=1 and retry, or"
+            " remove the pickle and let the app build artifacts from CSV."
+        )
+
+    try:
+        with path.open('rb') as f:
+            return pickle.load(f)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to read {file_path}: invalid or unsafe pickle content. "
+            "If this repo uses Git LFS, run 'git lfs pull'."
+        ) from exc
+>>>>>>> fd27852 ( risk managed)
 
 def recommend(movie):
     try:
@@ -132,6 +187,7 @@ def load_data():
     with open("similarity.pkl", "rb") as f:
         similarity = pickle.load(f)
 
+<<<<<<< HEAD
     # Ensure dataframe row positions align with similarity matrix indices.
     movies = movies.reset_index(drop=True)
 
@@ -139,6 +195,127 @@ def load_data():
         valid_size = min(len(movies), len(similarity))
         movies = movies.iloc[:valid_size].reset_index(drop=True)
         similarity = similarity[:valid_size, :valid_size]
+=======
+def parse_names(raw_value, limit=None):
+    """Extract person/category names from JSON-like list strings."""
+    if not isinstance(raw_value, str):
+        return []
+
+    try:
+        parsed = ast.literal_eval(raw_value)
+    except (SyntaxError, ValueError):
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    names = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        name = item.get('name')
+        if not name:
+            continue
+        names.append(str(name))
+        if limit and len(names) >= limit:
+            break
+    return names
+
+
+def parse_director(raw_value):
+    """Extract the movie director from JSON-like crew data."""
+    if not isinstance(raw_value, str):
+        return ''
+
+    try:
+        parsed = ast.literal_eval(raw_value)
+    except (SyntaxError, ValueError):
+        return ''
+
+    if not isinstance(parsed, list):
+        return ''
+
+    for item in parsed:
+        if isinstance(item, dict) and item.get('job') == 'Director':
+            return str(item.get('name', ''))
+    return ''
+
+
+def normalize_for_tags(tokens):
+    """Normalize tokens to improve text-vector matching quality."""
+    return [token.replace(' ', '') for token in tokens if token]
+
+
+@st.cache_resource(show_spinner=False)
+def build_recommender_from_csv():
+    """Build recommendation artifacts directly from TMDB CSV files."""
+    movies_path = Path('tmdb_5000_movies.csv')
+    credits_path = Path('tmdb_5000_credits.csv')
+
+    if not movies_path.exists() or not credits_path.exists():
+        missing = []
+        if not movies_path.exists():
+            missing.append(str(movies_path))
+        if not credits_path.exists():
+            missing.append(str(credits_path))
+        raise RuntimeError(f"Missing CSV files: {', '.join(missing)}")
+
+    movies_df = pd.read_csv(movies_path)
+    credits_df = pd.read_csv(credits_path)
+
+    merged = movies_df.merge(credits_df, on='title')
+    merged = merged[['movie_id', 'title', 'overview', 'genres', 'keywords', 'cast', 'crew']].copy()
+    merged['overview'] = merged['overview'].fillna('')
+
+    merged['genres_list'] = merged['genres'].apply(parse_names)
+    merged['keywords_list'] = merged['keywords'].apply(parse_names)
+    merged['cast_list'] = merged['cast'].apply(lambda value: parse_names(value, limit=3))
+    merged['director'] = merged['crew'].apply(parse_director)
+
+    merged['tags'] = merged.apply(
+        lambda row: ' '.join(
+            [row['overview']]
+            + normalize_for_tags(row['genres_list'])
+            + normalize_for_tags(row['keywords_list'])
+            + normalize_for_tags(row['cast_list'])
+            + normalize_for_tags([row['director']])
+        ),
+        axis=1,
+    )
+
+    vectorizer = CountVectorizer(max_features=5000, stop_words='english')
+    vectors = vectorizer.fit_transform(merged['tags']).toarray()
+    similarity_matrix = cosine_similarity(vectors)
+
+    prepared_movies = merged[['title', 'overview', 'genres_list', 'cast_list', 'director']].copy()
+    prepared_movies.rename(
+        columns={
+            'genres_list': 'genres',
+            'cast_list': 'cast',
+            'director': 'crew',
+        },
+        inplace=True,
+    )
+    prepared_movies['genres'] = prepared_movies['genres'].apply(lambda items: ', '.join(items))
+    prepared_movies['cast'] = prepared_movies['cast'].apply(lambda items: ', '.join(items))
+
+    return prepared_movies, similarity_matrix
+
+
+# Load recommendation artifacts, preferring precomputed pickle files.
+try:
+    movies_data = load_pickle_file('movies_data.pkl')
+    movies = pd.DataFrame(movies_data)
+    similarity = load_pickle_file('similarity.pkl')
+except RuntimeError as exc:
+    st.warning(str(exc))
+    st.info('Falling back to CSV processing. The first run may take up to a minute.')
+    try:
+        movies, similarity = build_recommender_from_csv()
+    except Exception as csv_exc:
+        st.error(f'Could not build recommender from CSV files: {csv_exc}')
+        st.stop()
+>>>>>>> fd27852 ( risk managed)
 
     movies["title_clean"] = movies["title"].str.strip().str.lower()
     return movies, similarity
